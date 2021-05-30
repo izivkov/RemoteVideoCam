@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <org.avmedia.remotevideocam.customcomponents.MainScreenLayout
+        android:id="@+id/mainLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/colorPrimaryDark"
+        android:orientation="vertical"
+        android:weightSum="2">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_margin="1dp"
+            android:layout_weight="1"
+            android:background="@drawable/panels_background">
+
+            <TextView
+                android:id="@+id/cameraPanel"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="@string/camera"
+                android:textColor="@color/colorPrimary"
+                android:textSize="40sp" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_margin="1dp"
+            android:layout_weight="1"
+            android:background="@drawable/panels_background">
+
+            <TextView
+                android:id="@+id/displayPanel"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="@string/display"
+                android:textColor="@color/colorPrimary"
+                android:textSize="40sp" />
+
+        </LinearLayout>
+    </org.avmedia.remotevideocam.customcomponents.MainScreenLayout>
+
+    <org.avmedia.remotevideocam.camera.customcomponents.CameraLayout
+        android:id="@+id/cameraLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/panels_background"
+        android:orientation="vertical">
+
+        <org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
+            android:id="@+id/videoWindow"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_margin="@dimen/feed_padding"
+            android:alpha="1.0"
+            android:gravity="center" />
+
+    </org.avmedia.remotevideocam.camera.customcomponents.CameraLayout>
+
+    <org.avmedia.remotevideocam.display.customcomponents.DisplayLayout
+        android:id="@+id/displayLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0"
+        android:background="@drawable/panels_background"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:id="@+id/video"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+
+            <org.avmedia.remotevideocam.display.customcomponents.VideoViewWebRTC
+                android:id="@+id/videoView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+        </FrameLayout>
+
+    </org.avmedia.remotevideocam.display.customcomponents.DisplayLayout>
+
+</FrameLayout>

@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">RemoteVideoCam</string>
+    <string name="display">Display</string>
+    <string name="camera">Camera</string>
+    <string name="camera_screen">Camera Screen</string>
+    <string name="display_screen">Display Screen</string>
+    <string name="activity_name">Remote Video Cam</string>
+</resources>
