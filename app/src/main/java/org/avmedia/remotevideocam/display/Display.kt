@@ -80,5 +80,4 @@ object Display {
                         "Got error on subscribe: $throwable"
                     )
                 })
-
 }

@@ -1,5 +1,5 @@
 /*
- * Developed for the OpenBot project (https://openbot.org) by:
+ * Developed by:
  *
  * Ivo Zivkov
  * izivkov@gmail.com

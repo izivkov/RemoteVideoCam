@@ -68,8 +68,7 @@ class WebRtcServer : IVideoServer {
         andGate = AndGate({ startServer() }) { stopServer() }
         andGate!!.addCondition("connected")
         andGate!!.addCondition("view set")
-        // andGate!!.addCondition("camera permission")
-        // andGate!!.addCondition("resolution set")
+        andGate!!.addCondition("camera permission")
         val camera =
             ContextCompat.checkSelfPermission(context!!, Manifest.permission.CAMERA)
         andGate!!.set("camera permission", camera == PackageManager.PERMISSION_GRANTED)
@@ -423,6 +422,7 @@ class WebRtcServer : IVideoServer {
     }
 
     internal inner class SignalingHandler {
+        @SuppressLint("LogNotTimber")
         fun handleControllerWebRtcEvents() {
             subscribe(
                 "WEB_RTC_COMMANDS",
@@ -460,8 +460,8 @@ class WebRtcServer : IVideoServer {
                     }
                 },
                 Consumer { error: Throwable? ->
-                    Timber.d(
-                        "Error occurred in handleControllerWebRtcEvents: %s", error
+                    Log.d(TAG,
+                        "Error occurred in handleControllerWebRtcEvents: " + error
                     )
                 },
                 Predicate { commandJsn: JSONObject? ->

@@ -1,13 +1,18 @@
 package org.avmedia.remotevideocam.camera
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
+import org.avmedia.remotevideocam.R
 import org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
 import org.json.JSONException
 import org.json.JSONObject
+import pub.devrel.easypermissions.AfterPermissionGranted
+import pub.devrel.easypermissions.EasyPermissions
 import timber.log.Timber
 
-object Camera {
+object Camera  {
     private val TAG = "Camera"
     private var connection: ILocalConnection = NetworkServiceConnection()
     private val videoServer: IVideoServer = WebRtcServer()
@@ -19,6 +24,7 @@ object Camera {
         connection.init(context)
         connection.setDataCallback(DataReceived())
         videoServer.init(context)
+
         handleBotEvents()
         connect(context)
         setView(view)

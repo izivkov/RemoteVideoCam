@@ -64,6 +64,12 @@ dependencies {
     // Logging
     implementation 'com.jakewharton.timber:timber:4.7.1'
 
+    // Easy permissions
+    // For developers using AndroidX in their applications
+    // implementation 'pub.devrel:easypermissions:3.0.0'
+    // For developers using the Android Support Library
+    implementation 'pub.devrel:easypermissions:2.0.1'
+
     apply plugin: 'com.android.application'
     apply plugin: 'kotlin-android'
 }

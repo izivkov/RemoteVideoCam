@@ -1,16 +1,23 @@
 package org.avmedia.remotevideocam
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.*
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import org.avmedia.remotevideocam.camera.Camera
-import org.avmedia.remotevideocam.display.Display
 import org.avmedia.remotevideocam.databinding.ActivityMainBinding
+import org.avmedia.remotevideocam.display.Display
+import pub.devrel.easypermissions.AfterPermissionGranted
+import pub.devrel.easypermissions.AppSettingsDialog
+import pub.devrel.easypermissions.EasyPermissions
 
-class MainActivity : AppCompatActivity() {
+
+class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, EasyPermissions.RationaleCallbacks {
 
     private lateinit var binding: ActivityMainBinding
     private val TAG = "MainActivity"
@@ -22,7 +29,8 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setScreenCharacteristics() // this should be called after "setContentView()"
-        setTouchListeners()
+        getPermission()
+        // setTouchListeners()
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -73,6 +81,52 @@ class MainActivity : AppCompatActivity() {
         binding.cameraLayout.hide()
     }
 
+    override fun onPermissionsDenied(requestCode: Int, perms: MutableList<String>) {
+        if (EasyPermissions.somePermissionPermanentlyDenied(this, perms)) {
+            AppSettingsDialog.Builder(this).build().show()
+        }
+    }
+
+    override fun onPermissionsGranted(requestCode: Int, perms: MutableList<String>) {
+        setTouchListeners()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        // Forward results to EasyPermissions
+        EasyPermissions.onRequestPermissionsResult(
+            requestCode,
+            permissions,
+            grantResults, this
+        )
+    }
+
+    @AfterPermissionGranted(Companion.RC_ALL_PERMISSIONS)
+    private fun getPermission() {
+        val perms = arrayOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.INTERNET,
+            Manifest.permission.ACCESS_NETWORK_STATE
+        )
+        if (EasyPermissions.hasPermissions(this, *perms)) {
+            setTouchListeners()
+        } else {
+            // Do not have permissions, request them now
+            // EasyPermissions.requestPermissions()
+            EasyPermissions.requestPermissions(
+                this, getString(R.string.camera_and_location_rationale),
+                Companion.RC_ALL_PERMISSIONS, *perms
+            )
+        }
+    }
+
     private fun setScreenCharacteristics() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.insetsController?.let {
@@ -92,5 +146,17 @@ class MainActivity : AppCompatActivity() {
             @Suppress("DEPRECATION")
             window.addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
         }
+    }
+
+    override fun onRationaleDenied(requestCode: Int) {
+        // Not yet
+    }
+
+    override fun onRationaleAccepted(requestCode: Int) {
+        // Not yet
+    }
+
+    companion object {
+        private const val RC_ALL_PERMISSIONS = 123
     }
 }
