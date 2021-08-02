@@ -9,6 +9,7 @@ import android.net.nsd.NsdServiceInfo
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import org.avmedia.remotevideocam.customcomponents.EventProcessor
 import java.io.BufferedInputStream
 import java.io.DataInputStream
 import java.io.OutputStream
@@ -28,11 +29,8 @@ object NetworkServiceConnection : ILocalConnection {
 
     private var mNsdManager: NsdManager? = null
 
-//    private var SERVICE_NAME = "REMOTE_VIDEO_CAM"
-//    private const val SERVICE_TYPE = "_org_avmedia_remotevideocam._tcp."
-
-    private var SERVICE_NAME = "OPEN_BOT_CONTROLLER"
-    private val SERVICE_TYPE = "_openbot._tcp."
+    private var SERVICE_NAME = "REMOTE_VIDEO_CAM"
+    private const val SERVICE_TYPE = "_org_avmedia_remotevideocam._tcp."
 
     private var dataReceivedCallback: IDataReceived? = null
 
@@ -56,8 +54,15 @@ object NetworkServiceConnection : ILocalConnection {
     }
 
     override fun disconnect(context: Context?) {
-        mNsdManager!!.unregisterService(mRegistrationListener)
-        socketHandler.close()
+        try {
+            if (mNsdManager == null) {
+                return;
+            }
+            mNsdManager?.unregisterService(mRegistrationListener)
+            socketHandler?.close()
+        } catch (e: java.lang.Exception) {
+            Log.d(TAG, "Got exception in disonnect: $e")
+        }
     }
 
     override fun isConnected(): Boolean {
@@ -97,20 +102,22 @@ object NetworkServiceConnection : ILocalConnection {
         private lateinit var serverSocket: ServerSocket
         private lateinit var clientInfo: ClientInfo
 
-        class ClientInfo(val reader: Scanner, val writer: OutputStream) {
-        }
+        class ClientInfo(val reader: Scanner, val writer: OutputStream)
 
         fun isConnected(): Boolean {
-            return !client.isClosed()
+            return !client.isClosed
         }
 
         fun connect(port: Int): ClientInfo? {
-            serverSocket = ServerSocket(port)
-            serverSocket.reuseAddress = true
             try {
+                serverSocket = ServerSocket(port)
+                serverSocket.reuseAddress = true
+
                 while (true) {
                     client = serverSocket.accept()
                     Log.i(TAG, "Connected...")
+
+                    EventProcessor.onNext(EventProcessor.ProgressEvents.ConnectionDisplaySuccessful)
 
                     // only connect if the app is NOT running on this device.
                     if (client.inetAddress.hostAddress != Utils.getIPAddress(true)) {
@@ -122,10 +129,6 @@ object NetworkServiceConnection : ILocalConnection {
                 val writer = client.getOutputStream()
 
                 clientInfo = ClientInfo(reader, writer)
-
-                val event: EventProcessor.ProgressEvents =
-                    EventProcessor.ProgressEvents.ConnectionSuccessful
-                EventProcessor.onNext(event)
 
                 println("Client connected: ${client.inetAddress.hostAddress}")
             } catch (e: Exception) {
@@ -144,9 +147,11 @@ object NetworkServiceConnection : ILocalConnection {
                     if (payload != null) {
 
                         (context as Activity).runOnUiThread {
-                            dataReceivedCallback?.dataReceived(String(
+                            dataReceivedCallback?.dataReceived(
+                                String(
                                     payload.toByteArray(), StandardCharsets.UTF_8
-                            ))
+                                )
+                            )
                         }
                     }
                 }
@@ -176,14 +181,13 @@ object NetworkServiceConnection : ILocalConnection {
         }
 
         fun close() {
+            EventProcessor.onNext(EventProcessor.ProgressEvents.DisplayDisconnected)
             if (this::client.isInitialized && !client.isClosed) {
                 client.close()
             }
-            serverSocket.close()
-
-            val event: EventProcessor.ProgressEvents =
-                EventProcessor.ProgressEvents.Disconnected
-            EventProcessor.onNext(event)
+            try {
+                serverSocket.close()
+            } catch (e: Exception) {}
         }
 
         fun put(message: String?) {
@@ -201,10 +205,15 @@ object NetworkServiceConnection : ILocalConnection {
         serviceInfo.serviceType = SERVICE_TYPE
         serviceInfo.port = port
 
-        mNsdManager!!.registerService(serviceInfo,
+        try {
+            mNsdManager!!.registerService(
+                serviceInfo,
                 NsdManager.PROTOCOL_DNS_SD,
                 mRegistrationListener
-        )
+            )
+        } catch (e: Exception) {
+            Log.d(TAG, "Got exception: " + e)
+        }
     }
 
     var mRegistrationListener: RegistrationListener = object : RegistrationListener {
@@ -216,10 +225,7 @@ object NetworkServiceConnection : ILocalConnection {
 
         override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
             Log.d(TAG, "onRegistrationFailed")
-
-            val event: EventProcessor.ProgressEvents =
-                EventProcessor.ProgressEvents.ConnectionFailed
-            EventProcessor.onNext(event)
+            EventProcessor.onNext(EventProcessor.ProgressEvents.ConnectionFailed)
         }
 
         override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) {

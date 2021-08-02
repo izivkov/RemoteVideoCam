@@ -2,20 +2,17 @@ package org.avmedia.remotevideocam
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.*
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import org.avmedia.remotevideocam.camera.Camera
 import org.avmedia.remotevideocam.databinding.ActivityMainBinding
 import org.avmedia.remotevideocam.display.Display
+import org.avmedia.remotevideocam.customcomponents.EventProcessor
 import pub.devrel.easypermissions.AfterPermissionGranted
 import pub.devrel.easypermissions.AppSettingsDialog
 import pub.devrel.easypermissions.EasyPermissions
-
 
 class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, EasyPermissions.RationaleCallbacks {
 
@@ -30,7 +27,12 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
 
         setScreenCharacteristics() // this should be called after "setContentView()"
         getPermission()
-        // setTouchListeners()
+
+        ScreenSelector.add("main screen", binding.mainLayout)
+        ScreenSelector.add("display screen", binding.displayLayout)
+        ScreenSelector.add("camera screen", binding.cameraLayout)
+
+        EventProcessor.onNext(EventProcessor.ProgressEvents.ShowMainScreen)
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -38,19 +40,18 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
         binding.cameraPanel.setOnTouchListener { _: View, m: MotionEvent ->
             when (m.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    showCameraScreen()
-
+                    EventProcessor.onNext(EventProcessor.ProgressEvents.StartCameraConnect)
                     Camera.init(this, binding.videoWindow)
                     Camera.connect(this)
                 }
             }
             true
-
         }
+
         binding.displayPanel.setOnTouchListener { _: View, m: MotionEvent ->
             when (m.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    showDisplayScreen()
+                    EventProcessor.onNext(EventProcessor.ProgressEvents.StartDisplayConnect)
 
                     Display.init(this, binding.videoView)
                     Display.connect(this)
@@ -58,27 +59,6 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
             }
             true
         }
-    }
-
-    private fun showCameraScreen() {
-        Log.i(TAG, "cameraLayout.setOnTouchListener")
-        binding.mainLayout.hide()
-        binding.displayLayout.hide()
-        binding.cameraLayout.show()
-    }
-
-    private fun showDisplayScreen() {
-        Log.i(TAG, "cameraLayout.setOnTouchListener")
-        binding.mainLayout.hide()
-        binding.displayLayout.show()
-        binding.cameraLayout.hide()
-    }
-
-    private fun showMainScreenScreen() {
-        Log.i(TAG, "cameraLayout.setOnTouchListener")
-        binding.mainLayout.show()
-        binding.displayLayout.hide()
-        binding.cameraLayout.hide()
     }
 
     override fun onPermissionsDenied(requestCode: Int, perms: MutableList<String>) {

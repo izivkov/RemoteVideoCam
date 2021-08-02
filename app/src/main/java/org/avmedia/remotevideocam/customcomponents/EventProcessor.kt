@@ -1,4 +1,4 @@
-package org.avmedia.remotevideocam.display
+package org.avmedia.remotevideocam.customcomponents
 
 import android.util.Log
 import io.reactivex.Flowable
@@ -22,14 +22,13 @@ object EventProcessor {
 
         object Init : ProgressEvents()
 
-        object ConnectionStarted : ProgressEvents()
-        object ConnectionSuccessful : ProgressEvents()
+        object ConnectionDisplaySuccessful : ProgressEvents()
+        object ConnectionCameraSuccessful : ProgressEvents()
         object ConnectionFailed : ProgressEvents()
-        object StartAdvertising : ProgressEvents()
-        object Disconnecting : ProgressEvents()
-        object Disconnected : ProgressEvents()
-        object StopAdvertising : ProgressEvents()
-        object AdvertisingFailed : ProgressEvents()
-        object TemporaryConnectionProblem : ProgressEvents()
+        object DisplayDisconnected : ProgressEvents()
+        object CameraDisconnected : ProgressEvents()
+        object ShowMainScreen: ProgressEvents()
+        object StartCameraConnect: ProgressEvents()
+        object StartDisplayConnect: ProgressEvents()
     }
 }

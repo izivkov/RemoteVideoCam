@@ -103,11 +103,8 @@ class WebRtcServer : IVideoServer {
         andGate?.set("view set", true)
     }
 
-    override fun setConnected(connected: Boolean, context: Context?) {
+    override fun setConnected(connected: Boolean) {
         andGate?.set("connected", connected)
-        val camera =
-            ContextCompat.checkSelfPermission(context!!, Manifest.permission.CAMERA)
-        andGate?.set("camera permission", camera == PackageManager.PERMISSION_GRANTED)
     }
 
     override fun setResolution(w: Int, h: Int) {
@@ -151,7 +148,7 @@ class WebRtcServer : IVideoServer {
         mediaStream?.addTrack(videoTrackFromCamera)
         mediaStream?.addTrack(localAudioTrack)
         peerConnection!!.addStream(mediaStream)
-        // cameraControlHandler.disableAudio()
+        cameraControlHandler.disableAudio()
     }
 
     private fun stopStreamingVideo() {
@@ -330,19 +327,19 @@ class WebRtcServer : IVideoServer {
     }
 
     private fun initializeSurfaceViews() {
+        view!!.release() // just in case
+
         view!!.init(rootEglBase!!.eglBaseContext, null)
         view!!.setEnableHardwareScaler(true)
         view!!.setMirror(true)
     }
 
     private fun createVideoCapturer(): VideoCapturer? {
-        val videoCapturer: VideoCapturer?
-        videoCapturer = if (useCamera2()) {
+        return if (useCamera2()) {
             createCameraCapturer(Camera2Enumerator(context))
         } else {
             createCameraCapturer(Camera1Enumerator(true))
         }
-        return videoCapturer
     }
 
     private fun useCamera2(): Boolean {

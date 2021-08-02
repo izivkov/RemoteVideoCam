@@ -23,16 +23,10 @@ import java.util.concurrent.BlockingQueue
 
 class NetworkServiceConnection : ILocalConnection {
     private var context: Context? = null
-//    private val SERVICE_NAME_CONTROLLER = "REMOTE_VIDEO_CAM"
-//    private val MY_SERVICE_NAME = "CAMERA_REMOTE_VIDEO_CAM"
-//    private val ALL_SERVICE_TYPES = "_services._dns-sd._udp"
-//    private val SERVICE_TYPE = "_org_avmedia_remotevideocam._tcp."
-
-
-    private val SERVICE_NAME_CONTROLLER = "OPEN_BOT_CONTROLLER"
-    private val MY_SERVICE_NAME = "OPEN_BOT"
+    private val SERVICE_NAME_CONTROLLER = "REMOTE_VIDEO_CAM"
+    private val MY_SERVICE_NAME = "CAMERA_REMOTE_VIDEO_CAM"
     private val ALL_SERVICE_TYPES = "_services._dns-sd._udp"
-    private val SERVICE_TYPE = "_openbot._tcp."
+    private val SERVICE_TYPE = "_org_avmedia_remotevideocam._tcp."
 
     private val port = 19400
     private val hostAddress: InetAddress? = null
@@ -201,7 +195,6 @@ class NetworkServiceConnection : ILocalConnection {
                     }
                     startReceiver(socketHandler, clientInfo.reader)
                     startSender(socketHandler, clientInfo.writer)
-
                     Log.i(TAG, "Connected....")
                 }
             }.start()

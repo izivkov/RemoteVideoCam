@@ -5,9 +5,10 @@ import android.content.Context
 import android.util.Log
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
-import org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
+import org.avmedia.remotevideocam.customcomponents.EventProcessor
 import org.avmedia.remotevideocam.display.customcomponents.VideoViewWebRTC
 
+@SuppressLint("StaticFieldLeak")
 object Display {
     private val TAG = "Display"
     private var connection: ILocalConnection = NetworkServiceConnection
@@ -48,27 +49,15 @@ object Display {
         EventProcessor.connectionEventFlowable
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext {
-                Log.i(TAG, "Got ${it} event")
+                Log.i(TAG, "Got $it event")
 
                 when (it) {
-                    EventProcessor.ProgressEvents.ConnectionSuccessful -> {
+                    EventProcessor.ProgressEvents.ConnectionDisplaySuccessful -> {
                         Utils.beep()
-                    }
-                    EventProcessor.ProgressEvents.ConnectionStarted -> {
                     }
                     EventProcessor.ProgressEvents.ConnectionFailed -> {
                     }
-                    EventProcessor.ProgressEvents.StartAdvertising -> {
-                    }
-                    EventProcessor.ProgressEvents.Disconnected -> {
-                        connection.connect(context)
-                    }
-                    EventProcessor.ProgressEvents.StopAdvertising -> {
-                    }
-                    EventProcessor.ProgressEvents.TemporaryConnectionProblem -> {
-                        connection.connect(context)
-                    }
-                    EventProcessor.ProgressEvents.AdvertisingFailed -> {
+                    EventProcessor.ProgressEvents.DisplayDisconnected -> {
                     }
                 }
             }

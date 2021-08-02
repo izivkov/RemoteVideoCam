@@ -11,21 +11,22 @@ package org.avmedia.remotevideocam.customcomponents
 
 import android.content.Context
 import android.util.AttributeSet
+import android.view.View
 import android.widget.LinearLayout
-import android.widget.RelativeLayout
+import org.avmedia.remotevideocam.IHideableLayout
 
-class MainScreenLayout @JvmOverloads constructor(
+class MainLayoutLayout @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : LinearLayout(context, attrs, defStyleAttr) {
+) : LinearLayout(context, attrs, defStyleAttr) , IHideableLayout {
 
     init {
     }
 
-    fun show() {
-        visibility = VISIBLE
+    override fun show() {
+        visibility = View.VISIBLE
     }
 
-    fun hide() {
-        visibility = INVISIBLE
+    override fun hide() {
+        visibility = View.GONE
     }
 }
