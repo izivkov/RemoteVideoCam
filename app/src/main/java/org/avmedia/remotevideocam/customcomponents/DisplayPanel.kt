@@ -7,20 +7,22 @@
  * Date: 2020-12-27, 10:58 p.m.
  */
 
-package org.avmedia.remotevideocam.display.customcomponents
+package org.avmedia.remotevideocam.customcomponents
 
 import android.content.Context
 import android.util.AttributeSet
+import android.view.MotionEvent
 import android.view.View
 import android.widget.LinearLayout
 import org.avmedia.remotevideocam.IHideableLayout
 
-class DisplayConnectingLayout @JvmOverloads constructor(
+class DisplayPanel @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : LinearLayout(context, attrs, defStyleAttr), IHideableLayout {
 
     init {
-        hide()
+        setOnTouchListener(OnTouchListener())
+        show()
     }
 
     override fun show() {
@@ -29,5 +31,16 @@ class DisplayConnectingLayout @JvmOverloads constructor(
 
     override fun hide() {
         visibility = View.GONE
+    }
+
+    inner class OnTouchListener() : View.OnTouchListener {
+        override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+            when (event?.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    LocalEventBus.onNext(LocalEventBus.ProgressEvents.StartDisplay)
+                }
+            }
+            return false
+        }
     }
 }

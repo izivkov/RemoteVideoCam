@@ -14,7 +14,7 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import org.avmedia.remotevideocam.customcomponents.Button
-import org.avmedia.remotevideocam.customcomponents.EventProcessor
+import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 import org.avmedia.remotevideocam.display.NetworkServiceConnection
 
 class BackButton @JvmOverloads constructor(
@@ -30,8 +30,10 @@ class BackButton @JvmOverloads constructor(
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             when (event?.action) {
                 MotionEvent.ACTION_UP -> {
-                    NetworkServiceConnection.disconnect()
-                    EventProcessor.onNext(EventProcessor.ProgressEvents.ShowMainScreen)
+                    // INZ - we do not connect/disconnect
+                    // NetworkServiceConnection.disconnect()
+
+                    LocalEventBus.onNext(LocalEventBus.ProgressEvents.ShowMainScreen)
                 }
             }
             return false

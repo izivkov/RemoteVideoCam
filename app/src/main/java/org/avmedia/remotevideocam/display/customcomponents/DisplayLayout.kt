@@ -21,7 +21,6 @@ class DisplayLayout @JvmOverloads constructor(
 ) : RelativeLayout(context, attrs, defStyleAttr), IHideableLayout {
 
     init {
-        // hide()
     }
 
     override fun show() {

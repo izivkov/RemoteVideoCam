@@ -1,6 +1,7 @@
 package org.avmedia.remotevideocam.camera
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.NonNull
 import androidx.annotation.RequiresApi
 import io.reactivex.disposables.Disposable
@@ -51,5 +52,12 @@ object DisplayToCameraEventBus {
             subscriber.dispose()
             subscribers.remove(name)
         }
+    }
+
+    fun unsubscribeAll () {
+        for (subscriber in subscribers.values) {
+            subscriber.dispose()
+        }
+        subscribers.clear()
     }
 }

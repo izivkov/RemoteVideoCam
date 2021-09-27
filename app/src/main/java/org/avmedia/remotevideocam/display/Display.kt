@@ -3,32 +3,36 @@ package org.avmedia.remotevideocam.display
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
+import androidx.fragment.app.Fragment
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
-import org.avmedia.remotevideocam.customcomponents.EventProcessor
+import org.avmedia.remotevideocam.MainActivity
+import org.avmedia.remotevideocam.camera.Camera
+import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 import org.avmedia.remotevideocam.display.customcomponents.VideoViewWebRTC
 
 @SuppressLint("StaticFieldLeak")
-object Display {
+object Display : Fragment() {
     private val TAG = "Display"
     private var connection: ILocalConnection = NetworkServiceConnection
-    private lateinit var context: Context
 
     fun init(
-        context: Context,
-        videoWindow: VideoViewWebRTC
+        context: Context?,
+        videoView: VideoViewWebRTC
     ) {
-        this.context = context
-        connection.init(context)
-        videoWindow.init()
+        if (context != null) {
+            connection.init(context)
+        }
+        videoView.init()
 
-        createAppEventsSubscription()
+        createAppEventsSubscription(context)
         subscribeToStatusInfo()
 
         CameraDataListener.init(connection)
+        connect(context)
     }
 
-    fun connect(context: Context) {
+    fun connect(context: Context?) {
         connection.connect(context)
     }
 
@@ -45,19 +49,21 @@ object Display {
     }
 
     @SuppressLint("LogNotTimber")
-    private fun createAppEventsSubscription(): Disposable =
-        EventProcessor.connectionEventFlowable
+    private fun createAppEventsSubscription(context: Context?): Disposable =
+        LocalEventBus.connectionEventFlowable
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext {
                 Log.i(TAG, "Got $it event")
 
                 when (it) {
-                    EventProcessor.ProgressEvents.ConnectionDisplaySuccessful -> {
+                    LocalEventBus.ProgressEvents.ConnectionDisplaySuccessful -> {
                         Utils.beep()
                     }
-                    EventProcessor.ProgressEvents.ConnectionFailed -> {
+                    LocalEventBus.ProgressEvents.ConnectionFailed -> {
+                        Log.i(TAG, "ConnectionFailed")
                     }
-                    EventProcessor.ProgressEvents.DisplayDisconnected -> {
+                    LocalEventBus.ProgressEvents.DisplayDisconnected -> {
+                        Log.i(TAG, "DisplayDisconnected")
                     }
                 }
             }

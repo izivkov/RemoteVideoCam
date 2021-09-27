@@ -4,7 +4,7 @@ import android.util.Log
 import io.reactivex.Flowable
 import io.reactivex.processors.PublishProcessor
 
-object EventProcessor {
+object LocalEventBus {
     private val eventProcessor: PublishProcessor<ProgressEvents> =
         PublishProcessor.create()
 
@@ -18,7 +18,7 @@ object EventProcessor {
         }
     }
 
-    open class ProgressEvents(var payload: String = "") {
+    open class ProgressEvents(var payload: Object? = null) {
 
         object Init : ProgressEvents()
 
@@ -28,7 +28,10 @@ object EventProcessor {
         object DisplayDisconnected : ProgressEvents()
         object CameraDisconnected : ProgressEvents()
         object ShowMainScreen: ProgressEvents()
-        object StartCameraConnect: ProgressEvents()
-        object StartDisplayConnect: ProgressEvents()
+        object ShowDisplayScreen: ProgressEvents()
+        object ShowCameraScreen: ProgressEvents()
+        object ShowConnectingScreen: ProgressEvents()
+        object StartCamera: ProgressEvents(payload = null)
+        object StartDisplay: ProgressEvents()
     }
 }

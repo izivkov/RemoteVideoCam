@@ -7,7 +7,7 @@ interface ILocalConnection {
     fun setDataCallback(dataCallback: IDataReceived?)
     fun connect(context: Context?)
     fun disconnect(context: Context?)
-    val isConnected: Boolean
+    fun isConnected(): Boolean
     fun sendMessage(message: String?)
     fun stop()
     fun start()

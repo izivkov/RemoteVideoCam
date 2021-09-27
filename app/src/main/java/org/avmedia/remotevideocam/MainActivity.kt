@@ -2,14 +2,18 @@ package org.avmedia.remotevideocam
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.*
 import androidx.appcompat.app.AppCompatActivity
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.camera.Camera
 import org.avmedia.remotevideocam.databinding.ActivityMainBinding
 import org.avmedia.remotevideocam.display.Display
-import org.avmedia.remotevideocam.customcomponents.EventProcessor
+import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 import pub.devrel.easypermissions.AfterPermissionGranted
 import pub.devrel.easypermissions.AppSettingsDialog
 import pub.devrel.easypermissions.EasyPermissions
@@ -23,6 +27,9 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
         super.onCreate(savedInstanceState)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
+        Camera.init(this, binding.videoWindow)
+        Display.init(this, binding.videoView)
+
         setContentView(binding.root)
 
         setScreenCharacteristics() // this should be called after "setContentView()"
@@ -32,33 +39,7 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
         ScreenSelector.add("display screen", binding.displayLayout)
         ScreenSelector.add("camera screen", binding.cameraLayout)
 
-        EventProcessor.onNext(EventProcessor.ProgressEvents.ShowMainScreen)
-    }
-
-    @SuppressLint("ClickableViewAccessibility")
-    private fun setTouchListeners() {
-        binding.cameraPanel.setOnTouchListener { _: View, m: MotionEvent ->
-            when (m.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    EventProcessor.onNext(EventProcessor.ProgressEvents.StartCameraConnect)
-                    Camera.init(this, binding.videoWindow)
-                    Camera.connect(this)
-                }
-            }
-            true
-        }
-
-        binding.displayPanel.setOnTouchListener { _: View, m: MotionEvent ->
-            when (m.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    EventProcessor.onNext(EventProcessor.ProgressEvents.StartDisplayConnect)
-
-                    Display.init(this, binding.videoView)
-                    Display.connect(this)
-                }
-            }
-            true
-        }
+        LocalEventBus.onNext(LocalEventBus.ProgressEvents.ShowMainScreen)
     }
 
     override fun onPermissionsDenied(requestCode: Int, perms: MutableList<String>) {
@@ -68,7 +49,6 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
     }
 
     override fun onPermissionsGranted(requestCode: Int, perms: MutableList<String>) {
-        setTouchListeners()
     }
 
     override fun onRequestPermissionsResult(
@@ -96,7 +76,6 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
             Manifest.permission.ACCESS_NETWORK_STATE
         )
         if (EasyPermissions.hasPermissions(this, *perms)) {
-            setTouchListeners()
         } else {
             // Do not have permissions, request them now
             // EasyPermissions.requestPermissions()

@@ -6,6 +6,7 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.util.Log
+import org.avmedia.remotevideocam.display.Utils
 import org.avmedia.remotevideocam.utils.ConnectionUtils
 import org.json.JSONException
 import org.json.JSONObject
@@ -23,8 +24,8 @@ import java.util.concurrent.BlockingQueue
 
 class NetworkServiceConnection : ILocalConnection {
     private var context: Context? = null
-    private val SERVICE_NAME_CONTROLLER = "REMOTE_VIDEO_CAM"
-    private val MY_SERVICE_NAME = "CAMERA_REMOTE_VIDEO_CAM"
+    private val REMOTE_SERVICE_NAME = "REMOTE_VIDEO_CAM"
+    private val MY_SERVICE_NAME = "REMOTE_VIDEO_CAM" + "-" + Utils.getIPAddress(true)
     private val ALL_SERVICE_TYPES = "_services._dns-sd._udp"
     private val SERVICE_TYPE = "_org_avmedia_remotevideocam._tcp."
 
@@ -39,6 +40,7 @@ class NetworkServiceConnection : ILocalConnection {
 
     @SuppressLint("ServiceCast")
     override fun init(context: Context?) {
+        this.context = context
         mNsdManager = context?.getSystemService(Context.NSD_SERVICE) as NsdManager
         socketHandler = SocketHandler(messageQueue)
     }
@@ -48,7 +50,6 @@ class NetworkServiceConnection : ILocalConnection {
     }
 
     override fun connect(context: Context?) {
-        this.context = context
         start()
         runConnection()
     }
@@ -66,8 +67,9 @@ class NetworkServiceConnection : ILocalConnection {
         }
     }
 
-    override val isConnected: Boolean
-        get() = socketHandler != null && socketHandler!!.isConnected
+    override fun isConnected (): Boolean {
+        return socketHandler != null && socketHandler!!.isConnected()
+    }
 
     override fun stop() {
         stopped = true
@@ -109,13 +111,10 @@ class NetworkServiceConnection : ILocalConnection {
             override fun onServiceFound(service: NsdServiceInfo) {
                 // A service was found! Do something with it.
                 Timber.d("Service discovery success : %s", service)
-                Timber.d("Host = %s", service.serviceName)
-                Timber.d("port = %s", service.port.toString())
+                Timber.d("********************** Service Name = %s", service.serviceName)
                 try {
-                    if (service.serviceType == SERVICE_TYPE && service.serviceName == SERVICE_NAME_CONTROLLER) {
+                    if (service.serviceType == SERVICE_TYPE && service.serviceName != MY_SERVICE_NAME) {
                         mNsdManager?.resolveService(service, mResolveListener)
-                    } else if (service.serviceName == MY_SERVICE_NAME) {
-                        Log.d(TAG, "Same machine: $MY_SERVICE_NAME")
                     }
                 } catch (e: IllegalArgumentException) {
                     Log.d(TAG, "Got exception: $e")
@@ -168,15 +167,17 @@ class NetworkServiceConnection : ILocalConnection {
 
         override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
             Timber.d("Resolve Succeeded. %s", serviceInfo)
-            if (serviceInfo.serviceName == MY_SERVICE_NAME) {
-                Timber.d("Same IP.")
-                return
-            }
 
             // Obtain port and IP
             val port: Int = serviceInfo.port
             val host: String = serviceInfo.host.hostAddress
             Timber.d("PORT: $port, address: $host")
+
+            if (host == Utils.getIPAddress(true)) {
+                Timber.d("Same IP.")
+                return
+            }
+
             (context as Activity?)
                 ?.runOnUiThread(
                     Runnable {
@@ -223,8 +224,9 @@ class NetworkServiceConnection : ILocalConnection {
 
     internal inner class SocketHandler(private var messageQueue: BlockingQueue<String>) {
         private var client: Socket? = null
-        val isConnected: Boolean
-            get() = client != null && !client!!.isClosed
+        fun isConnected(): Boolean {
+            return client != null && !client!!.isClosed
+        }
 
         internal inner class ClientInfo(var reader: Scanner, var writer: OutputStream)
 
@@ -280,14 +282,14 @@ class NetworkServiceConnection : ILocalConnection {
                     close()
 
                     // reconnect again
-                    if (isConnected) {
+                    if (isConnected()) {
                         runConnection()
                     }
                     break
                 } catch (e: IOException) {
                     Timber.i(TAG, "runSender got exception: $e")
                     close()
-                    if (isConnected) {
+                    if (isConnected()) {
                         runConnection()
                     }
                     break

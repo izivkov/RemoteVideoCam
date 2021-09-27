@@ -9,7 +9,7 @@ import android.net.nsd.NsdServiceInfo
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
-import org.avmedia.remotevideocam.customcomponents.EventProcessor
+import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 import java.io.BufferedInputStream
 import java.io.DataInputStream
 import java.io.OutputStream
@@ -25,11 +25,9 @@ import kotlin.concurrent.thread
 @SuppressLint("StaticFieldLeak")
 object NetworkServiceConnection : ILocalConnection {
 
-    private val TAG = "NetworkServiceConn"
-
+    private const val TAG = "NetworkServiceConn"
     private var mNsdManager: NsdManager? = null
-
-    private var SERVICE_NAME = "REMOTE_VIDEO_CAM"
+    private var SERVICE_NAME = "REMOTE_VIDEO_CAM" + "-" + Utils.getIPAddress(true)
     private const val SERVICE_TYPE = "_org_avmedia_remotevideocam._tcp."
 
     private var dataReceivedCallback: IDataReceived? = null
@@ -45,12 +43,12 @@ object NetworkServiceConnection : ILocalConnection {
         registerService(port)
     }
 
-    override fun setDataCallback(dataCallback: IDataReceived?) {
-        dataReceivedCallback = dataCallback
+    override fun connect(context: Context?) {
+        runConnection()
     }
 
-    override fun connect(context: Context) {
-        runConnection()
+    override fun setDataCallback(dataCallback: IDataReceived?) {
+        dataReceivedCallback = dataCallback
     }
 
     override fun disconnect(context: Context?) {
@@ -59,14 +57,14 @@ object NetworkServiceConnection : ILocalConnection {
                 return;
             }
             mNsdManager?.unregisterService(mRegistrationListener)
-            socketHandler?.close()
+            socketHandler.close()
         } catch (e: java.lang.Exception) {
             Log.d(TAG, "Got exception in disonnect: $e")
         }
     }
 
     override fun isConnected(): Boolean {
-        return socketHandler.isConnected()
+        return this::socketHandler.isInitialized && socketHandler.isConnected()
     }
 
     override fun sendMessage(message: String?) {
@@ -105,7 +103,7 @@ object NetworkServiceConnection : ILocalConnection {
         class ClientInfo(val reader: Scanner, val writer: OutputStream)
 
         fun isConnected(): Boolean {
-            return !client.isClosed
+            return this::client.isInitialized && !client.isClosed
         }
 
         fun connect(port: Int): ClientInfo? {
@@ -117,11 +115,12 @@ object NetworkServiceConnection : ILocalConnection {
                     client = serverSocket.accept()
                     Log.i(TAG, "Connected...")
 
-                    EventProcessor.onNext(EventProcessor.ProgressEvents.ConnectionDisplaySuccessful)
-
                     // only connect if the app is NOT running on this device.
                     if (client.inetAddress.hostAddress != Utils.getIPAddress(true)) {
+                        LocalEventBus.onNext(LocalEventBus.ProgressEvents.ConnectionDisplaySuccessful)
                         break
+                    } else {
+                        Log.d(TAG, "Trying to connect to myself. Ignore")
                     }
                 }
 
@@ -136,6 +135,7 @@ object NetworkServiceConnection : ILocalConnection {
                 close()
                 return null
             }
+
             return clientInfo
         }
 
@@ -181,7 +181,7 @@ object NetworkServiceConnection : ILocalConnection {
         }
 
         fun close() {
-            EventProcessor.onNext(EventProcessor.ProgressEvents.DisplayDisconnected)
+            LocalEventBus.onNext(LocalEventBus.ProgressEvents.DisplayDisconnected)
             if (this::client.isInitialized && !client.isClosed) {
                 client.close()
             }
@@ -225,7 +225,7 @@ object NetworkServiceConnection : ILocalConnection {
 
         override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
             Log.d(TAG, "onRegistrationFailed")
-            EventProcessor.onNext(EventProcessor.ProgressEvents.ConnectionFailed)
+            LocalEventBus.onNext(LocalEventBus.ProgressEvents.ConnectionFailed)
         }
 
         override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) {

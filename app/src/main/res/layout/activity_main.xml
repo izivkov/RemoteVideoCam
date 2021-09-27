@@ -14,7 +14,7 @@
         android:orientation="vertical"
         android:weightSum="2">
 
-        <LinearLayout
+        <org.avmedia.remotevideocam.customcomponents.CameraPanel
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_margin="1dp"
@@ -30,9 +30,9 @@
                 android:textColor="@color/colorPrimary"
                 android:textSize="40sp" />
 
-        </LinearLayout>
+        </org.avmedia.remotevideocam.customcomponents.CameraPanel>
 
-        <LinearLayout
+        <org.avmedia.remotevideocam.customcomponents.DisplayPanel
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_margin="1dp"
@@ -48,7 +48,8 @@
                 android:textColor="@color/colorPrimary"
                 android:textSize="40sp" />
 
-        </LinearLayout>
+        </org.avmedia.remotevideocam.customcomponents.DisplayPanel>
+
     </org.avmedia.remotevideocam.customcomponents.MainLayoutLayout>
 
     <org.avmedia.remotevideocam.camera.customcomponents.CameraLayout

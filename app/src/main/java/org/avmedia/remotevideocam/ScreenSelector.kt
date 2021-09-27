@@ -13,7 +13,7 @@ import android.annotation.SuppressLint
 import android.util.Log
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
-import org.avmedia.remotevideocam.customcomponents.EventProcessor
+import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 import java.util.*
 
 
@@ -25,14 +25,13 @@ object ScreenSelector {
 
     init {
         createAppEventsSubscription()
-
     }
 
     fun add(name: String, layout: IHideableLayout) {
         screens.add(NamedScreen(name, layout))
     }
 
-    private fun showScreen(name: String) {
+    fun showScreen(name: String) {
         for (screen in screens) {
             if (screen.name == name)
                 screen.layout.show()
@@ -43,27 +42,29 @@ object ScreenSelector {
 
     @SuppressLint("LogNotTimber")
     private fun createAppEventsSubscription(): Disposable =
-        EventProcessor.connectionEventFlowable
+        LocalEventBus.connectionEventFlowable
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext {
                 Log.i(TAG, "Got $it event")
 
                 when (it) {
-                    EventProcessor.ProgressEvents.ConnectionCameraSuccessful -> {
-                        showScreen("camera screen")
+                    LocalEventBus.ProgressEvents.CameraDisconnected -> {
+                        showScreen("main screen")
                     }
-                    EventProcessor.ProgressEvents.ConnectionDisplaySuccessful -> {
+                    LocalEventBus.ProgressEvents.ShowMainScreen -> {
+                        showScreen("main screen")
+                    }
+                    LocalEventBus.ProgressEvents.ShowDisplayScreen -> {
                         showScreen("display screen")
                     }
-                    EventProcessor.ProgressEvents.CameraDisconnected -> {
-                        showScreen("main screen")
+                    LocalEventBus.ProgressEvents.ShowCameraScreen -> {
+                        showScreen("camera screen")
                     }
-                    EventProcessor.ProgressEvents.ShowMainScreen -> {
-                        showScreen("main screen")
+                    LocalEventBus.ProgressEvents.StartCamera -> {
+                        ScreenSelector.showScreen("camera screen")
                     }
-                    EventProcessor.ProgressEvents.StartCameraConnect -> {
-                    }
-                    EventProcessor.ProgressEvents.StartDisplayConnect -> {
+                    LocalEventBus.ProgressEvents.StartDisplay -> {
+                        ScreenSelector.showScreen("display screen")
                     }
                 }
             }

@@ -15,7 +15,7 @@ import android.view.MotionEvent
 import android.view.View
 import org.avmedia.remotevideocam.camera.Camera
 import org.avmedia.remotevideocam.customcomponents.Button
-import org.avmedia.remotevideocam.customcomponents.EventProcessor
+import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 
 class BackButton @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -31,7 +31,7 @@ class BackButton @JvmOverloads constructor(
             when (event?.action) {
                 MotionEvent.ACTION_UP -> {
                     Camera.disconnect(context)
-                    EventProcessor.onNext(EventProcessor.ProgressEvents.ShowMainScreen)
+                    LocalEventBus.onNext(LocalEventBus.ProgressEvents.ShowMainScreen)
                 }
             }
             return false

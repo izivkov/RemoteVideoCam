@@ -8,7 +8,7 @@ interface ILocalConnection {
 
     fun setDataCallback(dataCallback: IDataReceived?)
 
-    fun connect(context: Context)
+    fun connect(context: Context?)
 
     fun disconnect(context: Context? = null)
 

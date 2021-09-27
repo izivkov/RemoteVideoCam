@@ -70,7 +70,15 @@ class VideoViewWebRTC @JvmOverloads constructor(
         }
     }
 
-    fun stop() {
+    private fun start() {
+        initializeSurfaceViews()
+        initializePeerConnectionFactory()
+        initializePeerConnections()
+
+        show()
+    }
+
+    private fun stop() {
         hide()
         release()
     }
@@ -81,14 +89,6 @@ class VideoViewWebRTC @JvmOverloads constructor(
 
     fun hide() {
         visibility = GONE
-    }
-
-    private fun start() {
-        initializeSurfaceViews()
-        initializePeerConnectionFactory()
-        initializePeerConnections()
-
-        show()
     }
 
     private fun initializeSurfaceViews() {
