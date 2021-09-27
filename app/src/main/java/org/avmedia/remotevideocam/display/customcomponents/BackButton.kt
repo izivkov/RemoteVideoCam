@@ -13,9 +13,7 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import org.avmedia.remotevideocam.customcomponents.Button
 import org.avmedia.remotevideocam.customcomponents.LocalEventBus
-import org.avmedia.remotevideocam.display.NetworkServiceConnection
 
 class BackButton @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0

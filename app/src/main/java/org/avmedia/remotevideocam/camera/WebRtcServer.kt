@@ -401,12 +401,7 @@ class WebRtcServer : IVideoServer {
                     )
                 },
                 Predicate { event: JSONObject? ->
-                    (event!!.has("command")
-                            && ("TOGGLE_SOUND"
-                            ==
-                            event.getString(
-                                "command"
-                            )))
+                    (event!!.has("command") && ("TOGGLE_SOUND" == event.getString("command")))
                 } // filter out all but the "TOGGLE_SOUND" commands..
             )
         }

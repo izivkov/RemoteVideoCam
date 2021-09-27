@@ -13,6 +13,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
 import android.util.Log
+import org.avmedia.remotevideocam.display.Display
 import org.avmedia.remotevideocam.display.ILocalConnection
 import org.avmedia.remotevideocam.display.NetworkServiceConnection
 import org.avmedia.remotevideocam.display.StatusEventBus
@@ -44,17 +45,16 @@ class VideoViewWebRTC @JvmOverloads constructor(
     @SuppressLint("CheckResult")
     fun init() {
         StatusEventBus.addSubject("WEB_RTC_EVENT")
-        StatusEventBus.getProcessor("WEB_RTC_EVENT")?.subscribe({
+        StatusEventBus.subscribe(this.javaClass.simpleName, "WEB_RTC_EVENT", onNext = {
             SignalingHandler().handleWebRtcEvent(JSONObject(it))
-        }, {
+        }, onError = {
             Log.i(null, "Failed to send...")
         })
 
         StatusEventBus.addSubject("VIDEO_COMMAND")
-        StatusEventBus.getProcessor("VIDEO_COMMAND")?.subscribe {
+        StatusEventBus.subscribe(this.javaClass.simpleName, "VIDEO_COMMAND", onNext = {
             processVideoCommand(it as String)
-        }
-
+        })
         rootEglBase = EglBase.create()
     }
 

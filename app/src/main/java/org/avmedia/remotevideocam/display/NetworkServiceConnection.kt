@@ -225,7 +225,6 @@ object NetworkServiceConnection : ILocalConnection {
 
         override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
             Log.d(TAG, "onRegistrationFailed")
-            LocalEventBus.onNext(LocalEventBus.ProgressEvents.ConnectionFailed)
         }
 
         override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) {

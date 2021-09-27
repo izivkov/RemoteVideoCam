@@ -24,13 +24,10 @@ object LocalEventBus {
 
         object ConnectionDisplaySuccessful : ProgressEvents()
         object ConnectionCameraSuccessful : ProgressEvents()
-        object ConnectionFailed : ProgressEvents()
         object DisplayDisconnected : ProgressEvents()
         object CameraDisconnected : ProgressEvents()
         object ShowMainScreen: ProgressEvents()
-        object ShowDisplayScreen: ProgressEvents()
         object ShowCameraScreen: ProgressEvents()
-        object ShowConnectingScreen: ProgressEvents()
         object StartCamera: ProgressEvents(payload = null)
         object StartDisplay: ProgressEvents()
     }

@@ -14,16 +14,14 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import org.avmedia.remotevideocam.camera.Camera
-import org.avmedia.remotevideocam.customcomponents.Button
 import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 
 class BackButton @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : Button(context, attrs, defStyleAttr) {
+) : com.google.android.material.button.MaterialButton(context, attrs, defStyleAttr) {
 
     init {
         setOnTouchListener(OnTouchListener())
-        show()
     }
 
     inner class OnTouchListener() : View.OnTouchListener {

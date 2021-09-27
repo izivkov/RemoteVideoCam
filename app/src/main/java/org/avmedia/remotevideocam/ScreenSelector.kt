@@ -54,9 +54,6 @@ object ScreenSelector {
                     LocalEventBus.ProgressEvents.ShowMainScreen -> {
                         showScreen("main screen")
                     }
-                    LocalEventBus.ProgressEvents.ShowDisplayScreen -> {
-                        showScreen("display screen")
-                    }
                     LocalEventBus.ProgressEvents.ShowCameraScreen -> {
                         showScreen("camera screen")
                     }

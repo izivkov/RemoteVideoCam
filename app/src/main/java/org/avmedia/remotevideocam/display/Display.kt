@@ -25,7 +25,6 @@ object Display : Fragment() {
         }
         videoView.init()
 
-        createAppEventsSubscription(context)
         subscribeToStatusInfo()
 
         CameraDataListener.init(connection)
@@ -39,40 +38,10 @@ object Display : Fragment() {
     @SuppressLint("CheckResult", "LogNotTimber")
     private fun subscribeToStatusInfo() {
         StatusEventBus.addSubject("CONNECTION_ACTIVE")
-        StatusEventBus.getProcessor("CONNECTION_ACTIVE")?.subscribe {
-
-            if (it.toBoolean()) Log.i(TAG, "Got CONNECTION_ACTIVE: true") else Log.i(
-                TAG,
-                "Got CONNECTION_ACTIVE: false"
-            )
-        }
-    }
-
-    @SuppressLint("LogNotTimber")
-    private fun createAppEventsSubscription(context: Context?): Disposable =
-        LocalEventBus.connectionEventFlowable
-            .observeOn(AndroidSchedulers.mainThread())
-            .doOnNext {
-                Log.i(TAG, "Got $it event")
-
-                when (it) {
-                    LocalEventBus.ProgressEvents.ConnectionDisplaySuccessful -> {
-                        Utils.beep()
-                    }
-                    LocalEventBus.ProgressEvents.ConnectionFailed -> {
-                        Log.i(TAG, "ConnectionFailed")
-                    }
-                    LocalEventBus.ProgressEvents.DisplayDisconnected -> {
-                        Log.i(TAG, "DisplayDisconnected")
-                    }
-                }
+        StatusEventBus.subscribe(this.javaClass.simpleName, "CONNECTION_ACTIVE", onNext = {
+            if (it.toBoolean()) {
+            } else {
             }
-            .subscribe(
-                { },
-                { throwable ->
-                    Log.d(
-                        "EventsSubscription",
-                        "Got error on subscribe: $throwable"
-                    )
-                })
+        })
+    }
 }

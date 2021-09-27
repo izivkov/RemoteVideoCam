@@ -7,7 +7,7 @@
  * Date: 2020-12-27, 10:56 p.m.
  */
 
-package org.avmedia.remotevideocam.customcomponents
+package org.avmedia.remotevideocam.display.customcomponents
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -16,6 +16,7 @@ import android.graphics.Color
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
+import org.avmedia.remotevideocam.display.ILocalConnection
 import org.avmedia.remotevideocam.display.NetworkServiceConnection
 import org.avmedia.remotevideocam.display.StatusEventBus
 
@@ -23,10 +24,9 @@ open class Button @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : com.google.android.material.button.MaterialButton(context, attrs, defStyleAttr) {
 
-    init {
-    }
+    private val connection: ILocalConnection = NetworkServiceConnection
 
-    fun show() {
+    open fun show() {
         visibility = VISIBLE
     }
 
@@ -34,8 +34,8 @@ open class Button @JvmOverloads constructor(
         visibility = INVISIBLE
     }
 
-    protected fun sendMessage(message: String?) {
-        NetworkServiceConnection.sendMessage(message)
+    protected fun sendMessage(message: String) {
+        connection.sendMessage(message)
     }
 
     inner class OnTouchListener(private val command: String) : View.OnTouchListener {
@@ -52,12 +52,12 @@ open class Button @JvmOverloads constructor(
     @SuppressLint("CheckResult")
     protected fun subscribe(subject: String, onDataReceived: (String) -> Unit) {
         StatusEventBus.addSubject(subject)
-        StatusEventBus.getProcessor(subject)?.subscribe {
+        StatusEventBus.subscribe(this.javaClass.simpleName, subject, onNext = {
             onDataReceived(it as String)
-        }
+        })
     }
 
-    protected fun setOnOffStateConditions(value: String) {
+    protected open fun setOnOffStateConditions(value: String) {
         if (value == "true") onState() else offState()
     }
 
