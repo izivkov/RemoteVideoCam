@@ -11,26 +11,21 @@ package org.avmedia.remotevideocam.camera.customcomponents
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.hardware.camera2.CameraAccessException
+import android.hardware.camera2.CameraManager
+import android.os.Build
 import android.util.AttributeSet
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
-import org.avmedia.remotevideocam.R
-import org.avmedia.remotevideocam.camera.CameraToDisplayEventBus
-import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus
+import androidx.core.content.ContextCompat.getSystemService
+import org.avmedia.remotevideocam.camera.FlashlightHandler
 import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 import org.avmedia.remotevideocam.display.customcomponents.Button
-import org.avmedia.remotevideocam.utils.ConnectionUtils
-import org.json.JSONObject
 
-import io.reactivex.functions.Consumer
-import io.reactivex.functions.Predicate
-
+@SuppressLint("ServiceCast")
 class Flashlight @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : Button(context, attrs, defStyleAttr) {
-
-    private var soundStatus:Boolean = true;
 
     init {
         setOnTouchListener(OnTouchListener())
@@ -40,7 +35,8 @@ class Flashlight @JvmOverloads constructor(
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             when (event?.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    LocalEventBus.onNext(LocalEventBus.ProgressEvents.FlipCamera)
+                    LocalEventBus.onNext(LocalEventBus.ProgressEvents.ToggleFlashlight)
+                    FlashlightHandler.toggleFlashlight(context)
                 }
             }
             return false

@@ -26,23 +26,22 @@ import org.json.JSONObject
 import io.reactivex.functions.Consumer
 import io.reactivex.functions.Predicate
 
-class Sound @JvmOverloads constructor(
+class FlipCamera @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : Button(context, attrs, defStyleAttr) {
 
-    private var soundStatus:Boolean = true;
+    private var soundStatus:Boolean = true
 
     init {
         setOnTouchListener(OnTouchListener())
     }
 
     inner class OnTouchListener() : View.OnTouchListener {
+        @SuppressLint("ClickableViewAccessibility")
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             when (event?.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    LocalEventBus.onNext(LocalEventBus.ProgressEvents.ToggleSound)
-                    soundStatus != soundStatus
-                    setCompoundDrawablesWithIntrinsicBounds(if (soundStatus) R.drawable.volume_up_24 else R.drawable.volume_off_24, 0, 0, 0)
+                    LocalEventBus.onNext(LocalEventBus.ProgressEvents.FlipCamera)
                 }
             }
             return false

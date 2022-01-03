@@ -3,8 +3,6 @@ package org.avmedia.remotevideocam.camera
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
 import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 import org.json.JSONException
@@ -39,7 +37,7 @@ object Camera {
     internal class DataReceived : IDataReceived {
         override fun dataReceived(commandStr: String?) {
             try {
-                DisplayToCameraEventBus.emitEvent(JSONObject(commandStr))
+                DisplayToCameraEventBus.emitEvent(JSONObject(commandStr as String))
             } catch (e: JSONException) {
                 e.printStackTrace()
             }
@@ -50,7 +48,7 @@ object Camera {
         connection.connect(context)
     }
 
-    fun disconnect(context: Context?) {
+    fun disconnect() {
         connection.stop()
     }
 
@@ -66,8 +64,8 @@ object Camera {
     private fun handleDisplayEvents() {
         CameraToDisplayEventBus.processor
             .subscribe(
-                { info: JSONObject -> send(info) },
-                { error -> Timber.d("Error occurred in BotToControllerEventBus: %s", error) })
+                { info: JSONObject -> send(info) }
+            ) { error -> Timber.d("Error occurred in BotToControllerEventBus: %s", error) }
     }
 
     @SuppressLint("LogNotTimber")

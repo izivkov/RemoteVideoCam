@@ -1,5 +1,5 @@
 package org.avmedia.remotevideocam.camera
 
 interface IDataReceived {
-    fun dataReceived(command: String?)
+    fun dataReceived(commandStr: String?)
 }

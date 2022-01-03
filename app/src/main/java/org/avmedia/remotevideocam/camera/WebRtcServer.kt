@@ -10,11 +10,14 @@ import android.util.Size
 import android.view.SurfaceView
 import android.view.TextureView
 import androidx.core.content.ContextCompat
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.Disposable
 import io.reactivex.functions.Consumer
 import io.reactivex.functions.Predicate
 import org.avmedia.remotevideocam.camera.CameraToDisplayEventBus.emitEvent
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.subscribe
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.unsubscribe
+import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 import org.avmedia.remotevideocam.utils.AndGate
 import org.avmedia.remotevideocam.utils.ConnectionUtils
 import org.json.JSONException
@@ -24,6 +27,9 @@ import org.webrtc.PeerConnection.*
 import org.webrtc.PeerConnectionFactory.InitializationOptions
 import timber.log.Timber
 import java.util.*
+import org.webrtc.CameraVideoCapturer
+import org.webrtc.Camera1Enumerator
+
 
 /*
 This class initiates a WebRTC call to the controller, by sending an WebRTC "offer"
@@ -58,9 +64,9 @@ class WebRtcServer : IVideoServer {
     var mediaStream: MediaStream? = null
     private var andGate: AndGate? = null
     private var context: Context? = null
-    private val cameraControlHandler = CameraControlHandler()
-    private val signalingHandler =
-        SignalingHandler()
+    private val signalingHandler = SignalingHandler()
+
+    private var videoCapturer: VideoCapturer? = null
 
     // IVideoServer Interface
     override fun init(context: Context?) {
@@ -74,8 +80,9 @@ class WebRtcServer : IVideoServer {
         andGate!!.set("camera permission", camera == PackageManager.PERMISSION_GRANTED)
 
         rootEglBase = EglBase.create()
-        cameraControlHandler.handleCameraControlEvents()
         signalingHandler.handleControllerWebRtcEvents()
+
+        createAppEventsSubscription(context)
     }
 
     override val isRunning: Boolean
@@ -148,7 +155,6 @@ class WebRtcServer : IVideoServer {
         mediaStream?.addTrack(videoTrackFromCamera)
         mediaStream?.addTrack(localAudioTrack)
         peerConnection!!.addStream(mediaStream)
-        cameraControlHandler.disableAudio()
     }
 
     private fun stopStreamingVideo() {
@@ -286,17 +292,17 @@ class WebRtcServer : IVideoServer {
 
     private fun createVideoTrackFromCameraAndShowIt() {
         audioConstraints = MediaConstraints()
-        val videoCapturer = createVideoCapturer()
+        videoCapturer = createVideoCapturer()
         val videoSource =
             factory!!.createVideoSource(videoCapturer!!.isScreencast)
         surfaceTextureHelper =
             SurfaceTextureHelper.create("CaptureThread", rootEglBase!!.eglBaseContext)
-        videoCapturer.initialize(
+        videoCapturer!!.initialize(
             surfaceTextureHelper,
             context,
             videoSource.capturerObserver
         )
-        videoCapturer.startCapture(
+        videoCapturer!!.startCapture(
             VIDEO_RESOLUTION_WIDTH,
             VIDEO_RESOLUTION_HEIGHT,
             FPS
@@ -331,7 +337,7 @@ class WebRtcServer : IVideoServer {
 
         view!!.init(rootEglBase!!.eglBaseContext, null)
         view!!.setEnableHardwareScaler(true)
-        view!!.setMirror(true)
+        view!!.setMirror(false)
     }
 
     private fun createVideoCapturer(): VideoCapturer? {
@@ -359,51 +365,39 @@ class WebRtcServer : IVideoServer {
         return null
     }
 
-    // Other commands
-    internal inner class CameraControlHandler {
-        fun disableAudio() {
-            if (mediaStream!!.audioTracks.size > 0) {
-                val audio = mediaStream!!.audioTracks[0]
-                audio.setEnabled(false)
-
-                // inform the controller of current state
-                emitEvent(
-                    ConnectionUtils.createStatus(
-                        "TOGGLE_SOUND",
-                        false
-                    )
-                )
+    @SuppressLint("LogNotTimber")
+    private fun createAppEventsSubscription(context: Context?): Disposable =
+        LocalEventBus.connectionEventFlowable
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext {
+                when (it) {
+                    LocalEventBus.ProgressEvents.FlipCamera -> flipCamera()
+                    LocalEventBus.ProgressEvents.ToggleFlashlight -> toggleFlashlight()
+                }
             }
-        }
-
-        @SuppressLint("LogNotTimber")
-        fun handleCameraControlEvents() {
-            subscribe(
-                this.javaClass.simpleName,
-                Consumer { event: JSONObject? ->
-                    val commandType = event!!.getString("command")
-                    when (commandType) {
-                        "TOGGLE_SOUND" -> if (mediaStream!!.audioTracks.size > 0) {
-                            val audio = mediaStream!!.audioTracks[0]
-                            audio.setEnabled(!audio.enabled())
-
-                            // inform the controller of current state
-                            emitEvent(
-                                ConnectionUtils.createStatus("TOGGLE_SOUND", audio.enabled())
-                            )
-                        }
-                    }
-                },
-                Consumer { error: Throwable? ->
+            .subscribe(
+                { },
+                { throwable ->
                     Log.d(
-                        null,
-                        "Error occurred in ControllerToBotEventBus: $error"
+                        "EventsSubscription",
+                        "Got error on subscribe: $throwable"
                     )
-                },
-                Predicate { event: JSONObject? ->
-                    (event!!.has("command") && ("TOGGLE_SOUND" == event.getString("command")))
-                } // filter out all but the "TOGGLE_SOUND" commands..
-            )
+                })
+
+    private fun toggleFlashlight() {
+        // TODO
+    }
+
+    private fun flipCamera() {
+        val cameraVideoCapturer = videoCapturer as CameraVideoCapturer
+        cameraVideoCapturer.switchCamera(null)
+    }
+
+    fun toggleSound() {
+        if (mediaStream!!.audioTracks.size > 0) {
+            val audio = mediaStream!!.audioTracks[0]
+            val isEnabled = audio.enabled()
+            audio.setEnabled(!isEnabled)
         }
     }
 

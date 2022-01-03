@@ -3,6 +3,7 @@ package org.avmedia.remotevideocam.customcomponents
 import android.util.Log
 import io.reactivex.Flowable
 import io.reactivex.processors.PublishProcessor
+import timber.log.Timber
 
 object LocalEventBus {
     private val eventProcessor: PublishProcessor<ProgressEvents> =
@@ -14,11 +15,11 @@ object LocalEventBus {
         if (eventProcessor.hasSubscribers()) {
             return eventProcessor.onNext(e)
         } else {
-            Log.d("EventProcessor:onNext", "----------- No subscribers")
+            Timber.d("EventProcessor:onNext----------- No subscribers")
         }
     }
 
-    open class ProgressEvents(var payload: Object? = null) {
+    open class ProgressEvents(var payload: Any? = null) {
 
         object Init : ProgressEvents()
 
@@ -30,5 +31,10 @@ object LocalEventBus {
         object ShowCameraScreen: ProgressEvents()
         object StartCamera: ProgressEvents(payload = null)
         object StartDisplay: ProgressEvents()
+        object ToggleMirror: ProgressEvents()
+        object FlipCamera : ProgressEvents()
+        object Mute : ProgressEvents()
+        object Unmute : ProgressEvents()
+        object ToggleFlashlight : ProgressEvents()
     }
 }

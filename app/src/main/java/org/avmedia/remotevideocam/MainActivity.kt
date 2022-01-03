@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.*
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.camera.Camera
@@ -31,6 +32,9 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
         Display.init(this, binding.videoView)
 
         setContentView(binding.root)
+
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         setScreenCharacteristics() // this should be called after "setContentView()"
         getPermission()
@@ -66,7 +70,7 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
         )
     }
 
-    @AfterPermissionGranted(Companion.RC_ALL_PERMISSIONS)
+    @AfterPermissionGranted(RC_ALL_PERMISSIONS)
     private fun getPermission() {
         val perms = arrayOf(
             Manifest.permission.CAMERA,
@@ -75,13 +79,12 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
             Manifest.permission.INTERNET,
             Manifest.permission.ACCESS_NETWORK_STATE
         )
-        if (EasyPermissions.hasPermissions(this, *perms)) {
-        } else {
+        if (!EasyPermissions.hasPermissions(this, *perms)) {
             // Do not have permissions, request them now
             // EasyPermissions.requestPermissions()
             EasyPermissions.requestPermissions(
                 this, getString(R.string.camera_and_location_rationale),
-                Companion.RC_ALL_PERMISSIONS, *perms
+                 RC_ALL_PERMISSIONS, *perms
             )
         }
     }

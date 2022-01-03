@@ -28,7 +28,7 @@ class BackButton @JvmOverloads constructor(
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             when (event?.action) {
                 MotionEvent.ACTION_UP -> {
-                    Camera.disconnect(context)
+                    Camera.disconnect()
                     LocalEventBus.onNext(LocalEventBus.ProgressEvents.ShowMainScreen)
                 }
             }

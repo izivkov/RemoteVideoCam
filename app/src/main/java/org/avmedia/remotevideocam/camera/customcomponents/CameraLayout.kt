@@ -13,11 +13,12 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.View
 import android.widget.LinearLayout
+import android.widget.RelativeLayout
 import org.avmedia.remotevideocam.IHideableLayout
 
 class CameraLayout @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : LinearLayout(context, attrs, defStyleAttr), IHideableLayout {
+) : RelativeLayout(context, attrs, defStyleAttr), IHideableLayout {
 
     init {
         hide()

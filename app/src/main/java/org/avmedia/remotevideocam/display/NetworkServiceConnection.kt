@@ -10,6 +10,7 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import org.avmedia.remotevideocam.customcomponents.LocalEventBus
+import timber.log.Timber
 import java.io.BufferedInputStream
 import java.io.DataInputStream
 import java.io.OutputStream
@@ -54,12 +55,12 @@ object NetworkServiceConnection : ILocalConnection {
     override fun disconnect(context: Context?) {
         try {
             if (mNsdManager == null) {
-                return;
+                return
             }
             mNsdManager?.unregisterService(mRegistrationListener)
             socketHandler.close()
         } catch (e: java.lang.Exception) {
-            Log.d(TAG, "Got exception in disonnect: $e")
+            Timber.d( "Got exception in disconnect: $e")
         }
     }
 
@@ -113,14 +114,14 @@ object NetworkServiceConnection : ILocalConnection {
 
                 while (true) {
                     client = serverSocket.accept()
-                    Log.i(TAG, "Connected...")
+                    Timber.i("Connected...")
 
                     // only connect if the app is NOT running on this device.
                     if (client.inetAddress.hostAddress != Utils.getIPAddress(true)) {
                         LocalEventBus.onNext(LocalEventBus.ProgressEvents.ConnectionDisplaySuccessful)
                         break
                     } else {
-                        Log.d(TAG, "Trying to connect to myself. Ignore")
+                        Timber.i("Trying to connect to myself. Ignore")
                     }
                 }
 
@@ -131,7 +132,7 @@ object NetworkServiceConnection : ILocalConnection {
 
                 println("Client connected: ${client.inetAddress.hostAddress}")
             } catch (e: Exception) {
-                Log.d(TAG, "Got exception: " + e)
+                Timber.i("Got exception: " + e)
                 close()
                 return null
             }
@@ -158,7 +159,7 @@ object NetworkServiceConnection : ILocalConnection {
 
             } catch (ex: Exception) {
                 reader?.close()
-                Log.d(TAG, "got exception ${ex}")
+                Timber.d("got exception ${ex}")
                 close()
 
             } finally {
@@ -166,18 +167,19 @@ object NetworkServiceConnection : ILocalConnection {
         }
 
         fun runSender(writer: OutputStream?) {
-            Log.i(TAG, "runSender started...")
+            Timber.i("runSender started...")
             try {
                 while (true) {
                     val message = messageQueue.take() as String
+                    Timber.d("Sending command ${message}")
                     writer?.write((message + '\n').toByteArray(Charset.defaultCharset()))
                 }
             } catch (e: Exception) {
-                Log.d(TAG, "runSender InterruptedException: {e}")
+                Timber.d("runSender InterruptedException: {e}")
                 writer?.close()
             } finally {
             }
-            Log.i(TAG, "end of runSender thread...")
+            Timber.d("end of runSender thread...")
         }
 
         fun close() {
@@ -212,7 +214,7 @@ object NetworkServiceConnection : ILocalConnection {
                 mRegistrationListener
             )
         } catch (e: Exception) {
-            Log.d(TAG, "Got exception: " + e)
+            Timber.d("Got exception: " + e)
         }
     }
 
@@ -220,19 +222,19 @@ object NetworkServiceConnection : ILocalConnection {
         override fun onServiceRegistered(NsdServiceInfo: NsdServiceInfo) {
             val mServiceName = NsdServiceInfo.serviceName
             SERVICE_NAME = mServiceName
-            Log.d(TAG, "Registered name : $mServiceName")
+            Timber.d( "Registered name : $mServiceName")
         }
 
         override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-            Log.d(TAG, "onRegistrationFailed")
+            Timber.d( "onRegistrationFailed")
         }
 
         override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) {
-            Log.d(TAG, "Service Unregistered : " + serviceInfo.serviceName)
+            Timber.d( "Service Unregistered : " + serviceInfo.serviceName)
         }
 
         override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-            Log.d(TAG, "onUnregistrationFailed : " + errorCode)
+            Timber.d("onUnregistrationFailed : " + errorCode)
         }
     }
 }

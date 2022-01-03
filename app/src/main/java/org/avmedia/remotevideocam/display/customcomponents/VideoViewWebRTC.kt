@@ -13,6 +13,9 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
 import android.util.Log
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.Disposable
+import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 import org.avmedia.remotevideocam.display.Display
 import org.avmedia.remotevideocam.display.ILocalConnection
 import org.avmedia.remotevideocam.display.NetworkServiceConnection
@@ -20,15 +23,18 @@ import org.avmedia.remotevideocam.display.StatusEventBus
 import org.json.JSONException
 import org.json.JSONObject
 import org.webrtc.*
+import org.webrtc.PeerConnection.IceServer
+import timber.log.Timber
 
 class VideoViewWebRTC @JvmOverloads constructor(
-        context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
+        context: Context, attrs: AttributeSet? = null
 ) : org.webrtc.SurfaceViewRenderer(context, attrs), SdpObserver, PeerConnection.Observer {
 
     private var peerConnection: PeerConnection? = null
     private var rootEglBase: EglBase? = null
     private var factory: PeerConnectionFactory? = null
     private val connection: ILocalConnection = NetworkServiceConnection
+    private var mirrorState = false
 
     companion object {
         private const val TAG = "VideoViewWebRTC"
@@ -46,15 +52,18 @@ class VideoViewWebRTC @JvmOverloads constructor(
     fun init() {
         StatusEventBus.addSubject("WEB_RTC_EVENT")
         StatusEventBus.subscribe(this.javaClass.simpleName, "WEB_RTC_EVENT", onNext = {
-            SignalingHandler().handleWebRtcEvent(JSONObject(it))
+            SignalingHandler().handleWebRtcEvent(JSONObject(it as String))
         }, onError = {
-            Log.i(null, "Failed to send...")
+            Timber.i("Failed to send...")
         })
 
         StatusEventBus.addSubject("VIDEO_COMMAND")
         StatusEventBus.subscribe(this.javaClass.simpleName, "VIDEO_COMMAND", onNext = {
             processVideoCommand(it as String)
         })
+
+        createAppEventsSubscription()
+
         rootEglBase = EglBase.create()
     }
 
@@ -96,12 +105,48 @@ class VideoViewWebRTC @JvmOverloads constructor(
 
         init(rootEglBase?.eglBaseContext, null)
         setEnableHardwareScaler(true)
-        setMirror(true)
+        mirrorState = false
+        setMirror(mirrorState)
     }
 
-    private fun toggleAudio(audioEnabled: Boolean) {
-        peerConnection?.setAudioPlayout(audioEnabled)
+    private fun mute() {
+        peerConnection!!.receivers[0].track()?.setEnabled(false)
     }
+
+    private fun unmute() {
+        peerConnection!!.receivers[0].track()?.setEnabled(true)
+    }
+
+    private fun toggleMirror () {
+        mirrorState = !mirrorState
+        setMirror(mirrorState)
+    }
+
+    private fun createAppEventsSubscription(): Disposable =
+        LocalEventBus.connectionEventFlowable
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext {
+                when (it) {
+                    LocalEventBus.ProgressEvents.ToggleMirror -> {
+                        toggleMirror()
+                    }
+
+                    LocalEventBus.ProgressEvents.Mute -> {
+                        mute()
+                    }
+                    LocalEventBus.ProgressEvents.Unmute -> {
+                        unmute()
+                    }
+                }
+            }
+            .subscribe(
+                { },
+                { throwable ->
+                    Timber.d(
+                        "Got error on subscribe: $throwable"
+                    )
+                })
+
 
     private fun initializePeerConnectionFactory() {
         val encoderFactory: VideoEncoderFactory = DefaultVideoEncoderFactory(rootEglBase!!.eglBaseContext, true, true)
@@ -116,8 +161,8 @@ class VideoViewWebRTC @JvmOverloads constructor(
     }
 
     private fun createPeerConnection(factory: PeerConnectionFactory?): PeerConnection? {
-        val iceServers = ArrayList<PeerConnection.IceServer>()
-        iceServers.add(PeerConnection.IceServer("stun:stun.l.google.com:19302"))
+        val iceServers = ArrayList<IceServer>()
+        iceServers.add(IceServer("stun:stun.l.google.com:19302"))
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
         val pcConstraints = MediaConstraints()
         val pcObserver: PeerConnection.Observer = object : PeerConnection.Observer {
@@ -209,7 +254,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
         override fun onSetSuccess() {}
         override fun onCreateFailure(s: String) {}
         override fun onSetFailure(s: String) {
-            Log.i(null, "Got error: $s")
+            Timber.i("Got error: $s")
         }
     }
 
@@ -227,7 +272,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
                 }
                 "bye" -> {
                     // Not yet used.
-                    Log.i(TAG, "got bye")
+                    Timber.i(TAG, "got bye")
                 }
             }
         }

@@ -91,8 +91,12 @@ class NetworkServiceConnection : ILocalConnection {
     }
 
     // end of interface //////////////////////////////
+    private lateinit var mDiscoveryListener: NsdManager.DiscoveryListener
+
     private fun runConnection() {
         try {
+            mDiscoveryListener = createDiscoveryListener()
+
             mNsdManager?.discoverServices( /*ALL_SERVICE_TYPES*/
                 SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, mDiscoveryListener
             )
@@ -101,8 +105,8 @@ class NetworkServiceConnection : ILocalConnection {
         }
     }
 
-    private var mDiscoveryListener: NsdManager.DiscoveryListener =
-        object : NsdManager.DiscoveryListener {
+    private fun createDiscoveryListener() : NsdManager.DiscoveryListener {
+        return object : NsdManager.DiscoveryListener {
             // Called as soon as service discovery begins.
             override fun onDiscoveryStarted(regType: String) {
                 Timber.d("Service discovery started")
@@ -111,7 +115,6 @@ class NetworkServiceConnection : ILocalConnection {
             override fun onServiceFound(service: NsdServiceInfo) {
                 // A service was found! Do something with it.
                 Timber.d("Service discovery success : %s", service)
-                Timber.d("********************** Service Name = %s", service.serviceName)
                 try {
                     if (service.serviceType == SERVICE_TYPE && service.serviceName != MY_SERVICE_NAME) {
                         mNsdManager?.resolveService(service, mResolveListener)
@@ -124,17 +127,8 @@ class NetworkServiceConnection : ILocalConnection {
             override fun onServiceLost(service: NsdServiceInfo) {
                 // When the network service is no longer available.
                 // Internal bookkeeping code goes here.
-                (context as Activity?)
-                    ?.runOnUiThread(
-                        Runnable {
-                            try {
-                                DisplayToCameraEventBus.emitEvent(
-                                    JSONObject("{command: \"DISCONNECTED\"}")
-                                )
-                            } catch (e: JSONException) {
-                                e.printStackTrace()
-                            }
-                        })
+
+                Timber.i("onServiceLost")
             }
 
             override fun onDiscoveryStopped(serviceType: String) {
@@ -155,6 +149,7 @@ class NetworkServiceConnection : ILocalConnection {
                 mNsdManager?.stopServiceDiscovery(this)
             }
         }
+    }
     var mResolveListener: NsdManager.ResolveListener = object : NsdManager.ResolveListener {
         override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
             // Called when the resolve fails. Use the error code to debug.
