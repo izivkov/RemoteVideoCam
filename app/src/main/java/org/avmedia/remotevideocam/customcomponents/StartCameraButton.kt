@@ -1,43 +1,35 @@
 /*
- * Developed by:
+ * Developed for the OpenBot project (https://openbot.org) by:
  *
  * Ivo Zivkov
  * izivkov@gmail.com
  *
- * Date: 2020-12-27, 10:58 p.m.
+ * Date: 2020-12-27, 10:57 p.m.
  */
 
 package org.avmedia.remotevideocam.customcomponents
 
+import android.app.Activity
 import android.content.Context
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import android.widget.LinearLayout
-import org.avmedia.remotevideocam.IHideableLayout
+import kotlin.system.exitProcess
 
-class DisplayPanel @JvmOverloads constructor(
+class StartCameraButton @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : LinearLayout(context, attrs, defStyleAttr), IHideableLayout {
+) : Button(context, attrs, defStyleAttr) {
 
     init {
         setOnTouchListener(OnTouchListener())
         show()
     }
 
-    override fun show() {
-        visibility = View.VISIBLE
-    }
-
-    override fun hide() {
-        visibility = View.GONE
-    }
-
     inner class OnTouchListener() : View.OnTouchListener {
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             when (event?.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    LocalEventBus.onNext(LocalEventBus.ProgressEvents.StartDisplay)
+                    LocalEventBus.onNext(LocalEventBus.ProgressEvents.StartCamera)
                 }
             }
             return false

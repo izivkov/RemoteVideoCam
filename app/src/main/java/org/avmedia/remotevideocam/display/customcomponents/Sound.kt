@@ -12,11 +12,12 @@ package org.avmedia.remotevideocam.display.customcomponents
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import org.avmedia.remotevideocam.R
 import org.avmedia.remotevideocam.customcomponents.LocalEventBus
-import org.avmedia.remotevideocam.display.customcomponents.Button
+import org.avmedia.remotevideocam.customcomponents.Button
 
 class Sound @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -47,14 +48,17 @@ class Sound @JvmOverloads constructor(
     }
 
     override fun offState() {
-        setCompoundDrawablesWithIntrinsicBounds( R.drawable.volume_off_24, 0, 0, 0)
+        setCompoundDrawablesWithIntrinsicBounds( 0, R.drawable.volume_off_24, 0,0)
+        gravity = Gravity.CENTER
 
         val event: LocalEventBus.ProgressEvents = LocalEventBus.ProgressEvents.Mute
         LocalEventBus.onNext(event)
     }
 
     override fun onState() {
-        setCompoundDrawablesWithIntrinsicBounds( R.drawable.volume_up_24, 0, 0, 0)
+        setCompoundDrawablesWithIntrinsicBounds(  0,R.drawable.volume_up_24, 0, 0)
+        gravity = Gravity.CENTER
+
         val event: LocalEventBus.ProgressEvents = LocalEventBus.ProgressEvents.Unmute
         LocalEventBus.onNext(event)
     }

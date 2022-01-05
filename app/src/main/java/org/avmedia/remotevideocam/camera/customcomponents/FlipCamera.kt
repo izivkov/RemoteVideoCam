@@ -12,19 +12,10 @@ package org.avmedia.remotevideocam.camera.customcomponents
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
-import org.avmedia.remotevideocam.R
-import org.avmedia.remotevideocam.camera.CameraToDisplayEventBus
-import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus
 import org.avmedia.remotevideocam.customcomponents.LocalEventBus
-import org.avmedia.remotevideocam.display.customcomponents.Button
-import org.avmedia.remotevideocam.utils.ConnectionUtils
-import org.json.JSONObject
-
-import io.reactivex.functions.Consumer
-import io.reactivex.functions.Predicate
+import org.avmedia.remotevideocam.customcomponents.Button
 
 class FlipCamera @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0

@@ -3,11 +3,22 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="app/src/main/res/drawable-v24/border_shadow.xml" value="0.22135416666666666" />
+        <entry key="app/src/main/res/drawable-v24/button.xml" value="0.22135416666666666" />
+        <entry key="app/src/main/res/drawable-v24/ic_flashlight_on.xml" value="0.22135416666666666" />
         <entry key="app/src/main/res/drawable-v24/ic_flashlight_on_24px.xml" value="0.24947916666666667" />
+        <entry key="app/src/main/res/drawable-v24/ic_flip_camera.xml" value="0.22135416666666666" />
+        <entry key="app/src/main/res/drawable-v24/panels_background.xml" value="0.22135416666666666" />
         <entry key="app/src/main/res/drawable-v24/toggle_mirror.xml" value="0.2625" />
         <entry key="app/src/main/res/drawable-v24/volume_off_24.xml" value="0.24947916666666667" />
         <entry key="app/src/main/res/drawable-v24/volume_up_24.xml" value="0.24947916666666667" />
-        <entry key="app/src/main/res/layout/activity_main.xml" value="0.25" />
+        <entry key="app/src/main/res/drawable/back_button.xml" value="0.22135416666666666" />
+        <entry key="app/src/main/res/drawable/exit.xml" value="0.2942708333333333" />
+        <entry key="app/src/main/res/drawable/ic_launcher_background.xml" value="0.22135416666666666" />
+        <entry key="app/src/main/res/drawable/ic_monitor_black_24dp.xml" value="0.2942708333333333" />
+        <entry key="app/src/main/res/drawable/ic_video_camera_front_black_24dp.xml" value="0.2942708333333333" />
+        <entry key="app/src/main/res/drawable/shaded.xml" value="0.22135416666666666" />
+        <entry key="app/src/main/res/layout/activity_main.xml" value="0.125" />
       </map>
     </option>
   </component>

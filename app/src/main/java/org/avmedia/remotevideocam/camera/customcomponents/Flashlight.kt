@@ -11,16 +11,12 @@ package org.avmedia.remotevideocam.camera.customcomponents
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.hardware.camera2.CameraAccessException
-import android.hardware.camera2.CameraManager
-import android.os.Build
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import androidx.core.content.ContextCompat.getSystemService
 import org.avmedia.remotevideocam.camera.FlashlightHandler
 import org.avmedia.remotevideocam.customcomponents.LocalEventBus
-import org.avmedia.remotevideocam.display.customcomponents.Button
+import org.avmedia.remotevideocam.customcomponents.Button
 
 @SuppressLint("ServiceCast")
 class Flashlight @JvmOverloads constructor(

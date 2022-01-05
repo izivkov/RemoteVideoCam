@@ -7,7 +7,7 @@
  * Date: 2020-12-27, 10:56 p.m.
  */
 
-package org.avmedia.remotevideocam.display.customcomponents
+package org.avmedia.remotevideocam.customcomponents
 
 import android.annotation.SuppressLint
 import android.content.Context
