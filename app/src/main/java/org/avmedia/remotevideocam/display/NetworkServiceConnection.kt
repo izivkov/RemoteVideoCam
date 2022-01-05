@@ -7,7 +7,6 @@ import android.net.nsd.NsdManager
 import android.net.nsd.NsdManager.RegistrationListener
 import android.net.nsd.NsdServiceInfo
 import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresApi
 import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 import timber.log.Timber
@@ -60,7 +59,7 @@ object NetworkServiceConnection : ILocalConnection {
             mNsdManager?.unregisterService(mRegistrationListener)
             socketHandler.close()
         } catch (e: java.lang.Exception) {
-            Timber.d( "Got exception in disconnect: $e")
+            Timber.d("Got exception in disconnect: $e")
         }
     }
 
@@ -132,11 +131,10 @@ object NetworkServiceConnection : ILocalConnection {
 
                 println("Client connected: ${client.inetAddress.hostAddress}")
             } catch (e: Exception) {
-                Timber.i("Got exception: " + e)
+                Timber.i("Got exception: %s", e)
                 close()
                 return null
             }
-
             return clientInfo
         }
 
@@ -159,9 +157,8 @@ object NetworkServiceConnection : ILocalConnection {
 
             } catch (ex: Exception) {
                 reader?.close()
-                Timber.d("got exception ${ex}")
+                Timber.d("got exception $ex")
                 close()
-
             } finally {
             }
         }
@@ -189,7 +186,8 @@ object NetworkServiceConnection : ILocalConnection {
             }
             try {
                 serverSocket.close()
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+            }
         }
 
         fun put(message: String?) {
@@ -222,15 +220,15 @@ object NetworkServiceConnection : ILocalConnection {
         override fun onServiceRegistered(NsdServiceInfo: NsdServiceInfo) {
             val mServiceName = NsdServiceInfo.serviceName
             SERVICE_NAME = mServiceName
-            Timber.d( "Registered name : $mServiceName")
+            Timber.d("Registered name : $mServiceName")
         }
 
         override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-            Timber.d( "onRegistrationFailed")
+            Timber.d("onRegistrationFailed")
         }
 
         override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) {
-            Timber.d( "Service Unregistered : " + serviceInfo.serviceName)
+            Timber.d("Service Unregistered : " + serviceInfo.serviceName)
         }
 
         override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {

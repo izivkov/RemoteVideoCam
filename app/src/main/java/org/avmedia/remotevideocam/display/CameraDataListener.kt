@@ -23,8 +23,6 @@ object CameraDataListener {
         val dataReceived: IDataReceived = object : IDataReceived {
             override fun dataReceived(command: String?) {
 
-                Log.i("CameraDataListener", ">>>>>>>>>>> received: $command")
-
                 val dataJson = JSONObject(command as String)
                 val statusValues = dataJson.getJSONObject("status")
 

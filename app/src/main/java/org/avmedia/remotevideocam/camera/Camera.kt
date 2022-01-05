@@ -31,7 +31,7 @@ object Camera {
         handleDisplayEvents()
         handleDisplayCommands()
 
-        connect(context)
+        // connect(context)
     }
 
     internal class DataReceived : IDataReceived {

@@ -90,7 +90,7 @@ class NetworkServiceConnection : ILocalConnection {
         }
     }
 
-    // end of interface //////////////////////////////
+    // end of interface
     private lateinit var mDiscoveryListener: NsdManager.DiscoveryListener
 
     private fun runConnection() {

@@ -195,7 +195,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
                 remoteVideoTrack.setEnabled(true)
 
                 val remoteAudioTrack = mediaStream.audioTracks[0]
-                remoteAudioTrack.setEnabled(true)
+                remoteAudioTrack.setEnabled(false) // start mute
                 
                 remoteVideoTrack.addSink(this@VideoViewWebRTC)
             }

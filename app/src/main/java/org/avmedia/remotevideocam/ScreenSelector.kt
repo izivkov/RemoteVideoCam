@@ -10,15 +10,17 @@
 package org.avmedia.remotevideocam
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.util.Log
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 import java.util.*
+import kotlin.system.exitProcess
 
 
 object ScreenSelector {
-    private val TAG = "ScreenSelector"
+    private const val TAG = "ScreenSelector"
 
     private class NamedScreen(var name: String, var layout: IHideableLayout)
     private var screens: MutableList<NamedScreen> = ArrayList()
@@ -31,7 +33,7 @@ object ScreenSelector {
         screens.add(NamedScreen(name, layout))
     }
 
-    fun showScreen(name: String) {
+    private fun showScreen(name: String) {
         for (screen in screens) {
             if (screen.name == name)
                 screen.layout.show()

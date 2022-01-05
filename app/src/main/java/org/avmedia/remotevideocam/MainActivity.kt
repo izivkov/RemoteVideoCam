@@ -28,8 +28,6 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
         super.onCreate(savedInstanceState)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
-        Camera.init(this, binding.videoWindow)
-        Display.init(this, binding.videoView)
 
         setContentView(binding.root)
 
@@ -44,6 +42,25 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
         ScreenSelector.add("camera screen", binding.cameraLayout)
 
         LocalEventBus.onNext(LocalEventBus.ProgressEvents.ShowMainScreen)
+    }
+
+    @Override
+    override fun onPause() {
+        super.onPause()
+        Camera.disconnect()
+        Display.disconnect(this)
+    }
+
+    @Override
+    override fun onResume() {
+        super.onResume()
+
+        // Open display first, which waits on 'accept'
+        Display.init(this, binding.videoView)
+        Display.connect(this)
+
+        Camera.init(this, binding.videoWindow)
+        Camera.connect(this)
     }
 
     override fun onPermissionsDenied(requestCode: Int, perms: MutableList<String>) {
