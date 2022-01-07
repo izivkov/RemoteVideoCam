@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">RemoteVideoCam</string>
+    <string name="display">Display</string>
+    <string name="camera">Camera</string>
+    <string name="camera_screen">Camera Screen</string>
+    <string name="display_screen">Display Screen</string>
+    <string name="activity_name">Remote Video Cam</string>
+    <string name="camera_and_location_rationale">Some permissions are needed to run this application. You will be asked to grant them.</string>
+    <string name="returned_from_app_settings_to_activity">Returned from settings</string>
+    <string name="connecting_to_display">Connecting to Display...</string>
+    <string name="connecting_to_camera">Connecting to Camera...</string>
+    <string name="connecting">Connecting...</string>
+</resources>

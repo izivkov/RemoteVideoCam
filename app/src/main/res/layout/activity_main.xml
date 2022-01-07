@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <org.avmedia.remotevideocam.customcomponents.MainLayoutLayout
+        android:id="@+id/mainLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/colorPrimaryDark"
+        android:orientation="vertical"
+        android:weightSum="2">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_margin="1dp"
+            android:layout_weight="1"
+            android:background="@drawable/panels_background">
+
+            <org.avmedia.remotevideocam.customcomponents.StartCameraButton
+                android:id="@+id/cameraPanel"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                style="@style/IconOnlyButton"
+                android:gravity="center"
+                app:icon="@drawable/ic_video_camera_front_black_24dp"
+                />
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_margin="1dp"
+            android:layout_weight="1"
+            android:background="@drawable/panels_background">
+
+            <org.avmedia.remotevideocam.customcomponents.StartDisplayButton
+                android:id="@+id/displayPanel"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                style="@style/IconOnlyButton"
+                android:gravity="center"
+                app:icon="@drawable/ic_monitor_black_24dp"
+                />
+
+            <org.avmedia.remotevideocam.customcomponents.ExitButton
+                android:id="@+id/exit_button"
+                style="@style/IconOnlyButton"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentBottom="true"
+                android:layout_marginStart="20dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="20dp"
+                app:icon="@drawable/exit" />
+
+        </RelativeLayout>
+
+    </org.avmedia.remotevideocam.customcomponents.MainLayoutLayout>
+
+    <org.avmedia.remotevideocam.camera.customcomponents.CameraLayout
+        android:id="@+id/cameraLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/panels_background"
+        android:orientation="vertical">
+
+        <org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
+            android:id="@+id/videoWindow"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center" />
+
+        <LinearLayout
+            android:id="@+id/video_controls_camera"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:background="@drawable/shaded"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <org.avmedia.remotevideocam.camera.customcomponents.FlipCamera
+                android:id="@+id/ic_flip_camera"
+                style="@style/IconOnlyButton"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_gravity="center"
+                android:layout_margin="5dp"
+                android:background="@drawable/button"
+                app:icon="@drawable/ic_flip_camera" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/camera_top_buttons_layout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="false"
+            android:background="@drawable/shaded"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toTopOf="parent">
+
+            <org.avmedia.remotevideocam.camera.customcomponents.BackButton
+                android:id="@+id/back_button_camera"
+                style="@style/IconOnlyButton"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:background="@drawable/button"
+                app:icon="@drawable/back_button" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/camera_icon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentRight="true"
+            app:tint="@color/red"
+            android:src="@drawable/ic_video_camera_front_black_24dp"
+            android:layout_margin="10dp"
+            />
+
+    </org.avmedia.remotevideocam.camera.customcomponents.CameraLayout>
+
+    <org.avmedia.remotevideocam.display.customcomponents.DisplayLayout
+        android:id="@+id/displayLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/panels_background"
+        android:orientation="vertical">
+
+        <org.avmedia.remotevideocam.display.customcomponents.VideoViewWebRTC
+            android:id="@+id/videoView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <LinearLayout
+            android:id="@+id/display_top_buttons_layout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="false"
+            android:background="@drawable/shaded"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toTopOf="parent">
+
+            <org.avmedia.remotevideocam.display.customcomponents.BackButton
+                android:id="@+id/back_button"
+                style="@style/IconOnlyButton"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:background="@drawable/button"
+                app:icon="@drawable/back_button" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/video_controls"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:background="@drawable/shaded"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <org.avmedia.remotevideocam.display.customcomponents.Sound
+                android:id="@+id/sound"
+                style="@style/IconOnlyButton"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_gravity="center"
+                android:layout_margin="10dp"
+                app:icon="@drawable/volume_off_24" />
+
+            <org.avmedia.remotevideocam.display.customcomponents.MirrorImage
+                android:id="@+id/mirror_image"
+                style="@style/IconOnlyButton"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_gravity="center"
+                android:layout_margin="10dp"
+                android:background="@drawable/button"
+                app:icon="@drawable/toggle_mirror" />
+
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/display_icon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentRight="true"
+            app:tint="@color/red"
+            android:src="@drawable/ic_monitor_black_24dp"
+            android:layout_margin="10dp"
+            />
+
+    </org.avmedia.remotevideocam.display.customcomponents.DisplayLayout>
+
+</FrameLayout>
