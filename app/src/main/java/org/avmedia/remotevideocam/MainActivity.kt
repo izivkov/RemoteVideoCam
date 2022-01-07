@@ -22,6 +22,7 @@ import pub.devrel.easypermissions.EasyPermissions
 import timber.log.Timber
 import android.content.DialogInterface
 import androidx.appcompat.app.AlertDialog
+import org.avmedia.remotevideocam.display.Utils
 
 
 class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, EasyPermissions.RationaleCallbacks {
@@ -169,6 +170,8 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
                 })
 
     private fun exitWithDialog () {
+        Utils.beep()
+
         val builder: AlertDialog.Builder = AlertDialog.Builder(this)
         builder.setMessage("Remote device closed. Exiting...")
             .setCancelable(false)

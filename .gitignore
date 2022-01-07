@@ -5,6 +5,8 @@
 /.idea/libraries
 .DS_Store
 /build
+/keystore
+/app/release
 /captures
 .externalNativeBuild
 

@@ -160,8 +160,6 @@ object NetworkServiceConnection : ILocalConnection {
             } catch (ex: Exception) {
                 reader?.close()
                 Timber.d("got exception $ex")
-
-
                 close()
             } finally {
             }
