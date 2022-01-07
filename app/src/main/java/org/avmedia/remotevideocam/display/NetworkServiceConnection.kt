@@ -8,7 +8,9 @@ import android.net.nsd.NsdManager.RegistrationListener
 import android.net.nsd.NsdServiceInfo
 import android.os.Build
 import androidx.annotation.RequiresApi
+import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus
 import org.avmedia.remotevideocam.customcomponents.LocalEventBus
+import org.json.JSONObject
 import timber.log.Timber
 import java.io.BufferedInputStream
 import java.io.DataInputStream
@@ -158,6 +160,8 @@ object NetworkServiceConnection : ILocalConnection {
             } catch (ex: Exception) {
                 reader?.close()
                 Timber.d("got exception $ex")
+
+
                 close()
             } finally {
             }
@@ -180,8 +184,8 @@ object NetworkServiceConnection : ILocalConnection {
         }
 
         fun close() {
-            LocalEventBus.onNext(LocalEventBus.ProgressEvents.DisplayDisconnected)
             if (this::client.isInitialized && !client.isClosed) {
+                LocalEventBus.onNext(LocalEventBus.ProgressEvents.DisplayDisconnected)
                 client.close()
             }
             try {

@@ -53,6 +53,9 @@ object ScreenSelector {
                     LocalEventBus.ProgressEvents.CameraDisconnected -> {
                         showScreen("main screen")
                     }
+                    LocalEventBus.ProgressEvents.DisplayDisconnected -> {
+                        showScreen("main screen")
+                    }
                     LocalEventBus.ProgressEvents.ShowMainScreen -> {
                         showScreen("main screen")
                     }

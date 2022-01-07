@@ -29,7 +29,6 @@ object Display : Fragment() {
         videoView.init()
 
         CameraDataListener.init(connection)
-        // createAppEventsSubscription()
     }
 
     fun connect(context: Context?) {
@@ -39,25 +38,4 @@ object Display : Fragment() {
     fun disconnect(context: Context?) {
         connection.disconnect(context)
     }
-
-    private fun createAppEventsSubscription(): Disposable =
-        LocalEventBus.connectionEventFlowable
-            .observeOn(AndroidSchedulers.mainThread())
-            .doOnNext {
-
-                when (it) {
-                    LocalEventBus.ProgressEvents.CameraDisconnected -> {
-                        Timber.i("CameraDisconnected event")
-                        (context as Activity).finish()
-                        exitProcess(0)
-                    }
-                }
-            }
-            .subscribe(
-                { },
-                { throwable ->
-                    Timber.d(
-                        "Got error on subscribe: $throwable"
-                    )
-                })
 }

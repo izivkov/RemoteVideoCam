@@ -138,10 +138,13 @@ class NetworkServiceConnection : ILocalConnection {
             @SuppressLint("TimberArgCount")
             override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
                 Timber.e(TAG, "Discovery failed: Error code: %s", errorCode)
-                mNsdManager?.stopServiceDiscovery(this)
-
-                // re-try connecting
-                runConnection()
+                try {
+                    mNsdManager?.stopServiceDiscovery(this)
+                    // re-try connecting
+                    runConnection()
+                } catch (e:Exception) {
+                    Timber.d("Got exception $e")
+                }
             }
 
             override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {

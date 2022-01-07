@@ -1,13 +1,18 @@
 package org.avmedia.remotevideocam.camera
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.util.Log
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
 import org.avmedia.remotevideocam.customcomponents.LocalEventBus
+import org.avmedia.remotevideocam.display.Display
 import org.json.JSONException
 import org.json.JSONObject
 import timber.log.Timber
+import kotlin.system.exitProcess
 
 @SuppressLint("StaticFieldLeak")
 object Camera {
@@ -30,8 +35,6 @@ object Camera {
 
         handleDisplayEvents()
         handleDisplayCommands()
-
-        // connect(context)
     }
 
     internal class DataReceived : IDataReceived {
@@ -50,6 +53,10 @@ object Camera {
 
     fun disconnect() {
         connection.stop()
+    }
+
+    fun disconnectHard(context: Context?) {
+        connection.disconnect(context)
     }
 
     private fun send(info: JSONObject) {
@@ -101,5 +108,4 @@ object Camera {
             }
         )
     }
-
 }

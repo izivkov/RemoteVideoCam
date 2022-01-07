@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.*
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -18,6 +19,10 @@ import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 import pub.devrel.easypermissions.AfterPermissionGranted
 import pub.devrel.easypermissions.AppSettingsDialog
 import pub.devrel.easypermissions.EasyPermissions
+import timber.log.Timber
+import android.content.DialogInterface
+import androidx.appcompat.app.AlertDialog
+
 
 class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, EasyPermissions.RationaleCallbacks {
 
@@ -42,6 +47,7 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
         ScreenSelector.add("camera screen", binding.cameraLayout)
 
         LocalEventBus.onNext(LocalEventBus.ProgressEvents.ShowMainScreen)
+        createAppEventsSubscription()
     }
 
     @Override
@@ -137,5 +143,39 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
 
     companion object {
         private const val RC_ALL_PERMISSIONS = 123
+    }
+
+    private fun createAppEventsSubscription(): Disposable =
+        LocalEventBus.connectionEventFlowable
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext {
+
+                when (it) {
+                    LocalEventBus.ProgressEvents.DisplayDisconnected -> {
+                        exitWithDialog()
+                    }
+
+                    LocalEventBus.ProgressEvents.CameraDisconnected -> {
+                        exitWithDialog()
+                    }
+                }
+            }
+            .subscribe(
+                { },
+                { throwable ->
+                    Timber.d(
+                        "Got error on subscribe: $throwable"
+                    )
+                })
+
+    private fun exitWithDialog () {
+        val builder: AlertDialog.Builder = AlertDialog.Builder(this)
+        builder.setMessage("Remote device closed. Exiting...")
+            .setCancelable(false)
+            .setPositiveButton("OK", DialogInterface.OnClickListener { dialog, id ->
+                finish()
+            })
+        val alert: AlertDialog = builder.create()
+        alert.show()
     }
 }
