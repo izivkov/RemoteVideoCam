@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/RemoteVideoCam.iml" filepath="$PROJECT_DIR$/.idea/RemoteVideoCam.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/RemoteVideoCam.iml" filepath="$PROJECT_DIR$/.idea/modules/RemoteVideoCam.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/RemoteVideoCam.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/RemoteVideoCam.app.iml" />
     </modules>
   </component>
