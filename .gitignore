@@ -8,5 +8,6 @@
 /keystore
 /app/release
 /captures
+/keys
 .externalNativeBuild
 
