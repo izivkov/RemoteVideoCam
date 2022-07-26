@@ -14,6 +14,11 @@
 
 <p><strong>Information Collection and Use</strong></p>
 <p>None</p>
+  
+  <p><strong>User Data</p>
+    <p>
+      This app does not collect any user data
+      </p>
 
 <p><strong>Log Data</strong></p>
 <p>We want to inform you that whenever you use our Service, in case of an error in the app we collect
