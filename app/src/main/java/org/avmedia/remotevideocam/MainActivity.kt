@@ -1,31 +1,31 @@
 package org.avmedia.remotevideocam
 
 import android.Manifest
-import android.annotation.SuppressLint
-import android.content.Context
+import android.content.DialogInterface
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
-import android.view.*
-import android.widget.Toast
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.camera.Camera
+import org.avmedia.remotevideocam.customcomponents.LocalEventBus
 import org.avmedia.remotevideocam.databinding.ActivityMainBinding
 import org.avmedia.remotevideocam.display.Display
-import org.avmedia.remotevideocam.customcomponents.LocalEventBus
+import org.avmedia.remotevideocam.display.Utils
 import pub.devrel.easypermissions.AfterPermissionGranted
 import pub.devrel.easypermissions.AppSettingsDialog
 import pub.devrel.easypermissions.EasyPermissions
 import timber.log.Timber
-import android.content.DialogInterface
-import androidx.appcompat.app.AlertDialog
-import org.avmedia.remotevideocam.display.Utils
 
 
-class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, EasyPermissions.RationaleCallbacks {
+class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
+    EasyPermissions.RationaleCallbacks {
 
     private lateinit var binding: ActivityMainBinding
     private val TAG = "MainActivity"
@@ -108,7 +108,7 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
             // EasyPermissions.requestPermissions()
             EasyPermissions.requestPermissions(
                 this, getString(R.string.camera_and_location_rationale),
-                 RC_ALL_PERMISSIONS, *perms
+                RC_ALL_PERMISSIONS, *perms
             )
         }
     }
@@ -169,7 +169,7 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks, E
                     )
                 })
 
-    private fun exitWithDialog () {
+    private fun exitWithDialog() {
         Utils.beep()
 
         val builder: AlertDialog.Builder = AlertDialog.Builder(this)

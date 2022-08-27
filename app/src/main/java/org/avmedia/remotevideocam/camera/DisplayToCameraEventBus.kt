@@ -27,8 +27,8 @@ object DisplayToCameraEventBus {
         subscribe(
             subscriberName,
             onNext,
-            onError,
-            Predicate<JSONObject?> { jsonObject -> true }) // do not filter if no filter passed. Always return true.
+            onError
+        ) { true } // do not filter if no filter passed. Always return true.
     }
 
     fun subscribe(

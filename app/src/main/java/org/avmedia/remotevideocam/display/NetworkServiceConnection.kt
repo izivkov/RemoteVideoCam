@@ -80,7 +80,6 @@ object NetworkServiceConnection : ILocalConnection {
     }
     // end of interface
 
-    @RequiresApi(Build.VERSION_CODES.KITKAT)
     @SuppressLint("StaticFieldLeak")
     private fun runConnection() {
         socketHandler = SocketHandler(messageQueue)
@@ -140,7 +139,6 @@ object NetworkServiceConnection : ILocalConnection {
             return clientInfo
         }
 
-        @RequiresApi(Build.VERSION_CODES.KITKAT)
         fun runReceiver(reader: Scanner?) {
             try {
                 while (true) {
@@ -170,7 +168,7 @@ object NetworkServiceConnection : ILocalConnection {
             try {
                 while (true) {
                     val message = messageQueue.take() as String
-                    Timber.d("Sending command ${message}")
+                    Timber.d("Sending command $message")
                     writer?.write((message + '\n').toByteArray(Charset.defaultCharset()))
                 }
             } catch (e: Exception) {
@@ -214,11 +212,11 @@ object NetworkServiceConnection : ILocalConnection {
                 mRegistrationListener
             )
         } catch (e: Exception) {
-            Timber.d("Got exception: " + e)
+            Timber.d("Got exception: %s", e)
         }
     }
 
-    var mRegistrationListener: RegistrationListener = object : RegistrationListener {
+    private var mRegistrationListener: RegistrationListener = object : RegistrationListener {
         override fun onServiceRegistered(NsdServiceInfo: NsdServiceInfo) {
             val mServiceName = NsdServiceInfo.serviceName
             SERVICE_NAME = mServiceName
@@ -230,11 +228,11 @@ object NetworkServiceConnection : ILocalConnection {
         }
 
         override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) {
-            Timber.d("Service Unregistered : " + serviceInfo.serviceName)
+            Timber.d("Service Unregistered : %s", serviceInfo.serviceName)
         }
 
         override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-            Timber.d("onUnregistrationFailed : " + errorCode)
+            Timber.d("onUnregistrationFailed : %s", errorCode)
         }
     }
 }

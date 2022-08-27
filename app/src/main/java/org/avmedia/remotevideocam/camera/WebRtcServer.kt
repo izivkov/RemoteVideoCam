@@ -77,7 +77,7 @@ class WebRtcServer : IVideoServer {
         andGate!!.addCondition("camera permission")
         val camera =
             ContextCompat.checkSelfPermission(context!!, Manifest.permission.CAMERA)
-        andGate!!.set("camera permission", camera == PackageManager.PERMISSION_GRANTED)
+        andGate!!["camera permission"] = camera == PackageManager.PERMISSION_GRANTED
 
         rootEglBase = EglBase.create()
         signalingHandler.handleControllerWebRtcEvents()

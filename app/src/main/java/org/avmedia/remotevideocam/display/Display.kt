@@ -27,7 +27,6 @@ object Display : Fragment() {
             connection.init(context)
         }
         videoView.init()
-
         CameraDataListener.init(connection)
     }
 

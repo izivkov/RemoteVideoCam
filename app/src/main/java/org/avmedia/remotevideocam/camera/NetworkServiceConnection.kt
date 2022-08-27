@@ -29,9 +29,6 @@ class NetworkServiceConnection : ILocalConnection {
     private val ALL_SERVICE_TYPES = "_services._dns-sd._udp"
     private val SERVICE_TYPE = "_org_avmedia_remotevideocam._tcp."
 
-    private val port = 19400
-    private val hostAddress: InetAddress? = null
-    private val hostPort = 0
     private var mNsdManager: NsdManager? = null
     private var dataReceivedCallback: IDataReceived? = null
     private var socketHandler: SocketHandler? = null

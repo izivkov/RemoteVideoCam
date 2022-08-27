@@ -9,6 +9,7 @@
 
 package org.avmedia.remotevideocam.display
 
+import android.annotation.SuppressLint
 import io.reactivex.functions.Consumer
 import io.reactivex.subjects.PublishSubject
 
@@ -49,6 +50,7 @@ object StatusEventBus {
         return true
     }
 
+    @SuppressLint("CheckResult")
     fun subscribe(subscriberName: String, subject: String, onNext: Consumer<in String?>) {
         if (!subscriberAlreadySubscribed(subscriberName, subject)) {
             getProcessor(subject)?.subscribe(onNext)
@@ -56,6 +58,7 @@ object StatusEventBus {
         }
     }
 
+    @SuppressLint("CheckResult")
     fun subscribe(subscriberName: String, subject: String, onNext: Consumer<in String?>, onError: Consumer<in Throwable>) {
         if (!subscriberAlreadySubscribed(subscriberName, subject)) {
             getProcessor(subject)?.subscribe(onNext, onError)

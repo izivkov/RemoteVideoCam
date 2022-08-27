@@ -10,4 +10,5 @@
     <string name="connecting_to_display">Connecting to Display...</string>
     <string name="connecting_to_camera">Connecting to Camera...</string>
     <string name="connecting">Connecting...</string>
+    <string name="waiting_got_other_device_to_connect">Waiting got other device to connect</string>
 </resources>

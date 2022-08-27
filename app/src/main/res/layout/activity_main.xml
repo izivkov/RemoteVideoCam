@@ -6,7 +6,38 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <org.avmedia.remotevideocam.customcomponents.MainLayoutLayout
+    <org.avmedia.remotevideocam.customcomponents.PreConnectLayout
+        android:id="@+id/waiting_to_connect_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        >
+
+        <TextView
+            android:id="@+id/waiting_for_connection_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/waiting_got_other_device_to_connect"
+            android:textColor="@color/colorPrimaryDark"
+            android:textSize="32dp"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/waiting_for_connection_text_sub_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="(run this app on other device)"
+            android:textColor="@color/colorPrimaryDark"
+            android:textSize="26dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/waiting_for_connection_text" />
+
+    </org.avmedia.remotevideocam.customcomponents.PreConnectLayout>
+
+    <org.avmedia.remotevideocam.customcomponents.MainLayout
         android:id="@+id/mainLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -62,7 +93,7 @@
 
         </RelativeLayout>
 
-    </org.avmedia.remotevideocam.customcomponents.MainLayoutLayout>
+    </org.avmedia.remotevideocam.customcomponents.MainLayout>
 
     <org.avmedia.remotevideocam.camera.customcomponents.CameraLayout
         android:id="@+id/cameraLayout"
