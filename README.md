@@ -6,9 +6,6 @@ When started, the app will automatically find the other device, and will start s
 The user can select to be either in "camera" or "display" mode on each device. Both phones can be in "display" mode as well,
 to see the other's camera view. The app can be used to monitor things in the house or in the yard, walkie-talkie, etc.
 
-The user can select to be either in "camera" or "display" mode on each device. Both phones can be in "display" mode as well, to see the other's camera view.
-The app can be used to monitor things in the house or in the yard, walkie-talkie, etc.
-
 [<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
      alt="Get it on F-Droid"
      height="80">](https://f-droid.org/packages/org.avmedia.remotevideocam/)
