@@ -1,6 +1,4 @@
 /*
- * Developed for the OpenBot project (https://openbot.org) by:
- *
  * Ivo Zivkov
  * izivkov@gmail.com
  *

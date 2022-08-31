@@ -6,11 +6,7 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdManager.RegistrationListener
 import android.net.nsd.NsdServiceInfo
-import android.os.Build
-import androidx.annotation.RequiresApi
-import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus
-import org.avmedia.remotevideocam.customcomponents.LocalEventBus
-import org.json.JSONObject
+import org.avmedia.remotevideocam.customcomponents.ProgressEvents
 import timber.log.Timber
 import java.io.BufferedInputStream
 import java.io.DataInputStream
@@ -118,7 +114,7 @@ object NetworkServiceConnection : ILocalConnection {
 
                     // only connect if the app is NOT running on this device.
                     if (client.inetAddress.hostAddress != Utils.getIPAddress(true)) {
-                        LocalEventBus.onNext(LocalEventBus.ProgressEvents.ConnectionDisplaySuccessful)
+                        ProgressEvents.onNext(ProgressEvents.Events.ConnectionDisplaySuccessful)
                         break
                     } else {
                         Timber.i("Trying to connect to myself. Ignore")
@@ -181,7 +177,7 @@ object NetworkServiceConnection : ILocalConnection {
 
         fun close() {
             if (this::client.isInitialized && !client.isClosed) {
-                LocalEventBus.onNext(LocalEventBus.ProgressEvents.DisplayDisconnected)
+                ProgressEvents.onNext(ProgressEvents.Events.DisplayDisconnected)
                 client.close()
             }
             try {

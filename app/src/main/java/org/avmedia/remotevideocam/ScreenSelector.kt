@@ -1,6 +1,4 @@
 /*
- * Developed for the OpenBot project (https://openbot.org) by:
- *
  * Ivo Zivkov
  * izivkov@gmail.com
  *
@@ -10,13 +8,11 @@
 package org.avmedia.remotevideocam
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.util.Log
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
-import org.avmedia.remotevideocam.customcomponents.LocalEventBus
+import org.avmedia.remotevideocam.customcomponents.ProgressEvents
 import java.util.*
-import kotlin.system.exitProcess
 
 
 object ScreenSelector {
@@ -44,28 +40,28 @@ object ScreenSelector {
 
     @SuppressLint("LogNotTimber")
     private fun createAppEventsSubscription(): Disposable =
-        LocalEventBus.connectionEventFlowable
+        ProgressEvents.connectionEventFlowable
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext {
                 Log.i(TAG, "Got $it event")
 
                 when (it) {
-                    LocalEventBus.ProgressEvents.CameraDisconnected -> {
+                    ProgressEvents.Events.CameraDisconnected -> {
                         showScreen("main screen")
                     }
-                    LocalEventBus.ProgressEvents.DisplayDisconnected -> {
+                    ProgressEvents.Events.DisplayDisconnected -> {
                         showScreen("main screen")
                     }
-                    LocalEventBus.ProgressEvents.ShowMainScreen -> {
+                    ProgressEvents.Events.ShowMainScreen -> {
                         showScreen("main screen")
                     }
-                    LocalEventBus.ProgressEvents.ShowCameraScreen -> {
+                    ProgressEvents.Events.ShowCameraScreen -> {
                         showScreen("camera screen")
                     }
-                    LocalEventBus.ProgressEvents.StartCamera -> {
+                    ProgressEvents.Events.StartCamera -> {
                         ScreenSelector.showScreen("camera screen")
                     }
-                    LocalEventBus.ProgressEvents.StartDisplay -> {
+                    ProgressEvents.Events.StartDisplay -> {
                         ScreenSelector.showScreen("display screen")
                     }
                 }

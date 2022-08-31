@@ -14,7 +14,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.camera.Camera
-import org.avmedia.remotevideocam.customcomponents.LocalEventBus
+import org.avmedia.remotevideocam.customcomponents.ProgressEvents
 import org.avmedia.remotevideocam.databinding.ActivityMainBinding
 import org.avmedia.remotevideocam.display.Display
 import org.avmedia.remotevideocam.display.Utils
@@ -47,7 +47,7 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
         ScreenSelector.add("display screen", binding.displayLayout)
         ScreenSelector.add("camera screen", binding.cameraLayout)
 
-        LocalEventBus.onNext(LocalEventBus.ProgressEvents.ShowMainScreen)
+        ProgressEvents.onNext(ProgressEvents.Events.ShowMainScreen)
         createAppEventsSubscription()
     }
 
@@ -147,16 +147,16 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
     }
 
     private fun createAppEventsSubscription(): Disposable =
-        LocalEventBus.connectionEventFlowable
+        ProgressEvents.connectionEventFlowable
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext {
 
                 when (it) {
-                    LocalEventBus.ProgressEvents.DisplayDisconnected -> {
+                    ProgressEvents.Events.DisplayDisconnected -> {
                         exitWithDialog()
                     }
 
-                    LocalEventBus.ProgressEvents.CameraDisconnected -> {
+                    ProgressEvents.Events.CameraDisconnected -> {
                         exitWithDialog()
                     }
                 }

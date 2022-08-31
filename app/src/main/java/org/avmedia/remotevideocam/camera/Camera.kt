@@ -1,18 +1,13 @@
 package org.avmedia.remotevideocam.camera
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.util.Log
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
-import org.avmedia.remotevideocam.customcomponents.LocalEventBus
-import org.avmedia.remotevideocam.display.Display
+import org.avmedia.remotevideocam.customcomponents.ProgressEvents
 import org.json.JSONException
 import org.json.JSONObject
 import timber.log.Timber
-import kotlin.system.exitProcess
 
 @SuppressLint("StaticFieldLeak")
 object Camera {
@@ -71,8 +66,8 @@ object Camera {
     private fun handleDisplayEvents() {
         CameraToDisplayEventBus.processor
             .subscribe(
-                { info: JSONObject -> send(info) }
-            ) { error -> Timber.d("Error occurred in BotToControllerEventBus: %s", error) }
+                { info -> send(info) }
+            ) { error -> Timber.d("Error occurred in CameraToDisplayEventBus: %s", error) }
     }
 
     @SuppressLint("LogNotTimber")
@@ -83,12 +78,12 @@ object Camera {
                 when (event!!.getString("command")) {
                     "CONNECTED" -> {
                         Timber.d("CONNECTED")
-                        LocalEventBus.onNext(LocalEventBus.ProgressEvents.ConnectionCameraSuccessful)
+                        ProgressEvents.onNext(ProgressEvents.Events.ConnectionCameraSuccessful)
                         videoServer.setConnected(true)
                     }
                     "DISCONNECTED" -> {
                         Timber.d("DISCONNECTED")
-                        LocalEventBus.onNext(LocalEventBus.ProgressEvents.CameraDisconnected)
+                        ProgressEvents.onNext(ProgressEvents.Events.CameraDisconnected)
                         videoServer.setConnected(false)
                     }
                 }

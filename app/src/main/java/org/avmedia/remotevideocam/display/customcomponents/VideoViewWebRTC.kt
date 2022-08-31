@@ -12,14 +12,12 @@ package org.avmedia.remotevideocam.display.customcomponents
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
-import org.avmedia.remotevideocam.customcomponents.LocalEventBus
-import org.avmedia.remotevideocam.display.Display
+import org.avmedia.remotevideocam.customcomponents.ProgressEvents
 import org.avmedia.remotevideocam.display.ILocalConnection
 import org.avmedia.remotevideocam.display.NetworkServiceConnection
-import org.avmedia.remotevideocam.display.StatusEventBus
+import org.avmedia.remotevideocam.display.CameraStatusEventBus
 import org.json.JSONException
 import org.json.JSONObject
 import org.webrtc.*
@@ -50,15 +48,15 @@ class VideoViewWebRTC @JvmOverloads constructor(
 
     @SuppressLint("CheckResult")
     fun init() {
-        StatusEventBus.addSubject("WEB_RTC_EVENT")
-        StatusEventBus.subscribe(this.javaClass.simpleName, "WEB_RTC_EVENT", onNext = {
+        CameraStatusEventBus.addSubject("WEB_RTC_EVENT")
+        CameraStatusEventBus.subscribe(this.javaClass.simpleName, "WEB_RTC_EVENT", onNext = {
             SignalingHandler().handleWebRtcEvent(JSONObject(it as String))
         }, onError = {
             Timber.i("Failed to send...")
         })
 
-        StatusEventBus.addSubject("VIDEO_COMMAND")
-        StatusEventBus.subscribe(this.javaClass.simpleName, "VIDEO_COMMAND", onNext = {
+        CameraStatusEventBus.addSubject("VIDEO_COMMAND")
+        CameraStatusEventBus.subscribe(this.javaClass.simpleName, "VIDEO_COMMAND", onNext = {
             processVideoCommand(it as String)
         })
 
@@ -123,18 +121,18 @@ class VideoViewWebRTC @JvmOverloads constructor(
     }
 
     private fun createAppEventsSubscription(): Disposable =
-        LocalEventBus.connectionEventFlowable
+        ProgressEvents.connectionEventFlowable
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext {
                 when (it) {
-                    LocalEventBus.ProgressEvents.ToggleMirror -> {
+                    ProgressEvents.Events.ToggleMirror -> {
                         toggleMirror()
                     }
 
-                    LocalEventBus.ProgressEvents.Mute -> {
+                    ProgressEvents.Events.Mute -> {
                         mute()
                     }
-                    LocalEventBus.ProgressEvents.Unmute -> {
+                    ProgressEvents.Events.Unmute -> {
                         unmute()
                     }
                 }
@@ -260,8 +258,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
 
     inner class SignalingHandler {
         fun handleWebRtcEvent(webRtcEvent: JSONObject) {
-            val type = webRtcEvent.getString("type")
-            when (type) {
+            when (webRtcEvent.getString("type")) {
                 "offer" -> {
                     peerConnection!!.setRemoteDescription(SimpleSdpObserver(), SessionDescription(SessionDescription.Type.OFFER, webRtcEvent.getString("sdp")))
                     doAnswer()
@@ -272,7 +269,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
                 }
                 "bye" -> {
                     // Not yet used.
-                    Timber.i(TAG, "got bye")
+                    Timber.i("got bye")
                 }
             }
         }

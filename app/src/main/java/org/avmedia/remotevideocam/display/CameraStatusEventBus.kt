@@ -13,7 +13,7 @@ import android.annotation.SuppressLint
 import io.reactivex.functions.Consumer
 import io.reactivex.subjects.PublishSubject
 
-object StatusEventBus {
+object CameraStatusEventBus {
     private val subjects = HashMap<String, PublishSubject<String?>>()
     private val subscribers = HashMap<String, LinkedHashSet<String>> ()
 

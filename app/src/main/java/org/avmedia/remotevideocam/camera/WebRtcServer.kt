@@ -17,7 +17,7 @@ import io.reactivex.functions.Predicate
 import org.avmedia.remotevideocam.camera.CameraToDisplayEventBus.emitEvent
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.subscribe
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.unsubscribe
-import org.avmedia.remotevideocam.customcomponents.LocalEventBus
+import org.avmedia.remotevideocam.customcomponents.ProgressEvents
 import org.avmedia.remotevideocam.utils.AndGate
 import org.avmedia.remotevideocam.utils.ConnectionUtils
 import org.json.JSONException
@@ -367,12 +367,12 @@ class WebRtcServer : IVideoServer {
 
     @SuppressLint("LogNotTimber")
     private fun createAppEventsSubscription(context: Context?): Disposable =
-        LocalEventBus.connectionEventFlowable
+        ProgressEvents.connectionEventFlowable
             .observeOn(AndroidSchedulers.mainThread())
             .doOnNext {
                 when (it) {
-                    LocalEventBus.ProgressEvents.FlipCamera -> flipCamera()
-                    LocalEventBus.ProgressEvents.ToggleFlashlight -> toggleFlashlight()
+                    ProgressEvents.Events.FlipCamera -> flipCamera()
+                    ProgressEvents.Events.ToggleFlashlight -> toggleFlashlight()
                 }
             }
             .subscribe(

@@ -1,6 +1,4 @@
 /*
- * Developed for the OpenBot project (https://openbot.org) by:
- *
  * Ivo Zivkov
  * izivkov@gmail.com
  *
@@ -12,15 +10,10 @@ package org.avmedia.remotevideocam.display.customcomponents
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
-import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.R
-import org.avmedia.remotevideocam.ScreenSelector
-import org.avmedia.remotevideocam.customcomponents.LocalEventBus
+import org.avmedia.remotevideocam.customcomponents.ProgressEvents
 import org.avmedia.remotevideocam.customcomponents.Button
 
 class Sound @JvmOverloads constructor(
@@ -54,14 +47,14 @@ class Sound @JvmOverloads constructor(
     override fun offState() {
         setCompoundDrawablesWithIntrinsicBounds( 0, R.drawable.volume_off_24, 0,0)
 
-        val event: LocalEventBus.ProgressEvents = LocalEventBus.ProgressEvents.Mute
-        LocalEventBus.onNext(event)
+        val event: ProgressEvents.Events = ProgressEvents.Events.Mute
+        ProgressEvents.onNext(event)
     }
 
     override fun onState() {
         setCompoundDrawablesWithIntrinsicBounds(  0,R.drawable.volume_up_24, 0, 0)
 
-        val event: LocalEventBus.ProgressEvents = LocalEventBus.ProgressEvents.Unmute
-        LocalEventBus.onNext(event)
+        val event: ProgressEvents.Events = ProgressEvents.Events.Unmute
+        ProgressEvents.onNext(event)
     }
 }

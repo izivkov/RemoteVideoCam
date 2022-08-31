@@ -1,6 +1,4 @@
 /*
- * Developed for the OpenBot project (https://openbot.org) by:
- *
  * Ivo Zivkov
  * izivkov@gmail.com
  *
@@ -14,7 +12,7 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import org.avmedia.remotevideocam.customcomponents.LocalEventBus
+import org.avmedia.remotevideocam.customcomponents.ProgressEvents
 import org.avmedia.remotevideocam.customcomponents.Button
 
 class FlipCamera @JvmOverloads constructor(
@@ -32,7 +30,7 @@ class FlipCamera @JvmOverloads constructor(
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             when (event?.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    LocalEventBus.onNext(LocalEventBus.ProgressEvents.FlipCamera)
+                    ProgressEvents.onNext(ProgressEvents.Events.FlipCamera)
                 }
             }
             return false

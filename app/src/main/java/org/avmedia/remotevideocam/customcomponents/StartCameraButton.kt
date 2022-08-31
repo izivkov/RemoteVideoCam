@@ -1,6 +1,4 @@
 /*
- * Developed for the OpenBot project (https://openbot.org) by:
- *
  * Ivo Zivkov
  * izivkov@gmail.com
  *
@@ -9,12 +7,10 @@
 
 package org.avmedia.remotevideocam.customcomponents
 
-import android.app.Activity
 import android.content.Context
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import kotlin.system.exitProcess
 
 class StartCameraButton @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -29,7 +25,7 @@ class StartCameraButton @JvmOverloads constructor(
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             when (event?.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    LocalEventBus.onNext(LocalEventBus.ProgressEvents.StartCamera)
+                    ProgressEvents.onNext(ProgressEvents.Events.StartCamera)
                 }
             }
             return false

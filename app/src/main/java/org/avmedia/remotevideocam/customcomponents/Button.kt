@@ -1,6 +1,4 @@
 /*
- * Developed for the OpenBot project (https://openbot.org) by:
- *
  * Ivo Zivkov
  * izivkov@gmail.com
  *
@@ -18,7 +16,7 @@ import android.view.MotionEvent
 import android.view.View
 import org.avmedia.remotevideocam.display.ILocalConnection
 import org.avmedia.remotevideocam.display.NetworkServiceConnection
-import org.avmedia.remotevideocam.display.StatusEventBus
+import org.avmedia.remotevideocam.display.CameraStatusEventBus
 
 open class Button @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -51,8 +49,8 @@ open class Button @JvmOverloads constructor(
 
     @SuppressLint("CheckResult")
     protected fun subscribe(subject: String, onDataReceived: (String) -> Unit) {
-        StatusEventBus.addSubject(subject)
-        StatusEventBus.subscribe(this.javaClass.simpleName, subject, onNext = {
+        CameraStatusEventBus.addSubject(subject)
+        CameraStatusEventBus.subscribe(this.javaClass.simpleName, subject, onNext = {
             onDataReceived(it as String)
         })
     }

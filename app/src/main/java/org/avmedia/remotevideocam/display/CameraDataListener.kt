@@ -9,13 +9,10 @@
 
 package org.avmedia.remotevideocam.display
 
-import android.util.Log
 import org.json.JSONObject
 
 /*
-This class listens for status data from the Bot and emits events.
-These events are received by various custom components which update their UI accordingly.
-For example, a right indicator will start blinking if the status on the bot is set.
+This class listens for status data from the Camera and emits events.
  */
 object CameraDataListener {
 
@@ -33,7 +30,7 @@ object CameraDataListener {
                     Send an event on a particular subject.
                     The custom components are listening on their subject.
                     */
-                    StatusEventBus.emitEvent(key, value)
+                    CameraStatusEventBus.emitEvent(key, value)
                 }
             }
         }

@@ -70,12 +70,10 @@ class NetworkServiceConnection : ILocalConnection {
 
     override fun stop() {
         stopped = true
-        CameraToDisplayEventBus.emitEvent(ConnectionUtils.createStatus("CONNECTION_ACTIVE", false))
     }
 
     override fun start() {
         stopped = false
-        CameraToDisplayEventBus.emitEvent(ConnectionUtils.createStatus("CONNECTION_ACTIVE", true))
     }
 
     override val isVideoCapable: Boolean
@@ -191,7 +189,7 @@ class NetworkServiceConnection : ILocalConnection {
                     }
                     startReceiver(socketHandler, clientInfo.reader)
                     startSender(socketHandler, clientInfo.writer)
-                    Log.i(TAG, "Connected....")
+                    Timber.tag(TAG).i("Connected....")
                 }
             }.start()
         }
@@ -302,9 +300,7 @@ class NetworkServiceConnection : ILocalConnection {
                     ?.runOnUiThread(
                         Runnable {
                             try {
-                                DisplayToCameraEventBus.emitEvent(
-                                    JSONObject("{command: \"DISCONNECTED\"}")
-                                )
+                                DisplayToCameraEventBus.emitEvent( JSONObject("{command: \"DISCONNECTED\"}") )
                             } catch (e: JSONException) {
                                 e.printStackTrace()
                             }
