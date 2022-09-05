@@ -22,18 +22,21 @@ object ProgressEvents {
 
         object Init : Events()
 
+        object ShowWaitingForConnectionScreen : Events()
         object ConnectionDisplaySuccessful : Events()
         object ConnectionCameraSuccessful : Events()
         object DisplayDisconnected : Events()
         object CameraDisconnected : Events()
         object ShowMainScreen: Events()
-        object ShowCameraScreen: Events()
-        object StartCamera: Events(payload = null)
-        object StartDisplay: Events()
+        object ShowCameraScreen: Events(payload = null)
+        object ShowDisplayScreen: Events()
         object ToggleMirror: Events()
         object FlipCamera : Events()
         object Mute : Events()
         object Unmute : Events()
         object ToggleFlashlight : Events()
+        object WEBRtcServerFailed : Events()
+        object WEBRtcClientFailed : Events()
+        object WEBRtcClientDisconnected : Events()
     }
 }

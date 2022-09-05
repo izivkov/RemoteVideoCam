@@ -177,12 +177,13 @@ object NetworkServiceConnection : ILocalConnection {
 
         fun close() {
             if (this::client.isInitialized && !client.isClosed) {
-                ProgressEvents.onNext(ProgressEvents.Events.DisplayDisconnected)
                 client.close()
             }
             try {
                 serverSocket.close()
             } catch (e: Exception) {
+            } finally {
+                ProgressEvents.onNext(ProgressEvents.Events.DisplayDisconnected)
             }
         }
 

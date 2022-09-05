@@ -25,7 +25,7 @@ class StartCameraButton @JvmOverloads constructor(
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             when (event?.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    ProgressEvents.onNext(ProgressEvents.Events.StartCamera)
+                    ProgressEvents.onNext(ProgressEvents.Events.ShowCameraScreen)
                 }
             }
             return false

@@ -30,14 +30,13 @@ import java.util.*
 import org.webrtc.CameraVideoCapturer
 import org.webrtc.Camera1Enumerator
 
-
 /*
-This class initiates a WebRTC call to the controller, by sending an WebRTC "offer"
-to the controller, providing its A/V capabilities. It then waits for an "answer" with
-controller's capabilities. The two sides then exchange ICE candidates until a suitable
-common capabilities are found, and then media is streamed from this class to the controller.
+This class initiates a WebRTC call to the display, by sending an WebRTC "offer"
+to the display, providing its A/V capabilities. It then waits for an "answer" with
+display's capabilities. The two sides then exchange ICE candidates until a suitable
+common capabilities are found, and then media is streamed from this class to the display.
 
-Note that the media is streamed only one way from this class to the controller.
+Note that the media is streamed only one way from this class to the display.
 
 WebRTC does not specify signaling protocol. Usually, a separate signaling server is used
 witch mediates between the two WebRTC peers, and communication from and to this server is
@@ -180,6 +179,12 @@ class WebRtcServer : IVideoServer {
         sdpMediaConstraints.mandatory.add(
             MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false")
         )
+
+        // INZ new
+        sdpMediaConstraints.mandatory.add(
+            MediaConstraints.KeyValuePair("IceRestart", "true")
+        )
+
         peerConnection!!.createOffer(
             object : SimpleSdpObserver() {
                 override fun onCreateSuccess(sessionDescription: SessionDescription) {
@@ -214,21 +219,28 @@ class WebRtcServer : IVideoServer {
                 Log.d(TAG, "onSignalingChange: ")
             }
 
-            override fun onIceConnectionChange(iceConnectionState: IceConnectionState) {
+            override fun onIceConnectionChange(newState: IceConnectionState) {
                 Log.d(TAG, "onIceConnectionChange: ")
             }
 
             override fun onStandardizedIceConnectionChange(
                 newState: IceConnectionState
             ) {
+                Log.d(TAG, "Server: onStandardizedIceConnectionChange: ")
             }
 
-            override fun onConnectionChange(newState: PeerConnectionState) {}
+            override fun onConnectionChange(newState: PeerConnectionState) {
+                Log.d(TAG, "Server: onConnectionChange: $newState")
+                if (/*newState.name == "FAILED" ||*/ newState.name == "DISCONNECTED") {
+                    ProgressEvents.onNext(ProgressEvents.Events.WEBRtcServerFailed)
+                }
+            }
+
             override fun onIceConnectionReceivingChange(b: Boolean) {
                 Log.d(TAG, "onIceConnectionReceivingChange: ")
             }
 
-            override fun onIceGatheringChange(iceGatheringState: IceGatheringState) {
+            override fun onIceGatheringChange(newState: IceGatheringState) {
                 Log.d(TAG, "onIceGatheringChange: ")
             }
 
@@ -373,6 +385,10 @@ class WebRtcServer : IVideoServer {
                 when (it) {
                     ProgressEvents.Events.FlipCamera -> flipCamera()
                     ProgressEvents.Events.ToggleFlashlight -> toggleFlashlight()
+                    ProgressEvents.Events.WEBRtcServerFailed -> {
+                        // initializePeerConnections()
+                        startServer()
+                    }
                 }
             }
             .subscribe(

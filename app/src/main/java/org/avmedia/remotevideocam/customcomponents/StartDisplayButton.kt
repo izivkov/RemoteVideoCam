@@ -25,7 +25,7 @@ class StartDisplayButton @JvmOverloads constructor(
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             when (event?.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    ProgressEvents.onNext(ProgressEvents.Events.StartDisplay)
+                    ProgressEvents.onNext(ProgressEvents.Events.ShowDisplayScreen)
                 }
             }
             return false

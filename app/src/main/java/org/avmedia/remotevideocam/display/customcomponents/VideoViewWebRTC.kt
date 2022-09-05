@@ -12,12 +12,13 @@ package org.avmedia.remotevideocam.display.customcomponents
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
+import android.util.Log
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.customcomponents.ProgressEvents
+import org.avmedia.remotevideocam.display.CameraStatusEventBus
 import org.avmedia.remotevideocam.display.ILocalConnection
 import org.avmedia.remotevideocam.display.NetworkServiceConnection
-import org.avmedia.remotevideocam.display.CameraStatusEventBus
 import org.json.JSONException
 import org.json.JSONObject
 import org.webrtc.*
@@ -25,7 +26,7 @@ import org.webrtc.PeerConnection.IceServer
 import timber.log.Timber
 
 class VideoViewWebRTC @JvmOverloads constructor(
-        context: Context, attrs: AttributeSet? = null
+    context: Context, attrs: AttributeSet? = null
 ) : org.webrtc.SurfaceViewRenderer(context, attrs), SdpObserver, PeerConnection.Observer {
 
     private var peerConnection: PeerConnection? = null
@@ -115,7 +116,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
         peerConnection!!.receivers[0].track()?.setEnabled(true)
     }
 
-    private fun toggleMirror () {
+    private fun toggleMirror() {
         mirrorState = !mirrorState
         setMirror(mirrorState)
     }
@@ -128,12 +129,17 @@ class VideoViewWebRTC @JvmOverloads constructor(
                     ProgressEvents.Events.ToggleMirror -> {
                         toggleMirror()
                     }
-
                     ProgressEvents.Events.Mute -> {
                         mute()
                     }
                     ProgressEvents.Events.Unmute -> {
                         unmute()
+                    }
+                    ProgressEvents.Events.WEBRtcClientDisconnected -> {
+                        stop()
+                    }
+                    ProgressEvents.Events.WEBRtcClientFailed -> {
+                        start()
                     }
                 }
             }
@@ -145,13 +151,16 @@ class VideoViewWebRTC @JvmOverloads constructor(
                     )
                 })
 
-
     private fun initializePeerConnectionFactory() {
-        val encoderFactory: VideoEncoderFactory = DefaultVideoEncoderFactory(rootEglBase!!.eglBaseContext, true, true)
-        val decoderFactory: VideoDecoderFactory = DefaultVideoDecoderFactory(rootEglBase!!.eglBaseContext)
-        val initializationOptions = PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions()
+        val encoderFactory: VideoEncoderFactory =
+            DefaultVideoEncoderFactory(rootEglBase!!.eglBaseContext, true, true)
+        val decoderFactory: VideoDecoderFactory =
+            DefaultVideoDecoderFactory(rootEglBase!!.eglBaseContext)
+        val initializationOptions = PeerConnectionFactory.InitializationOptions.builder(context)
+            .createInitializationOptions()
         PeerConnectionFactory.initialize(initializationOptions)
-        factory = PeerConnectionFactory.builder().setVideoEncoderFactory(encoderFactory).setVideoDecoderFactory(decoderFactory).createPeerConnectionFactory()
+        factory = PeerConnectionFactory.builder().setVideoEncoderFactory(encoderFactory)
+            .setVideoDecoderFactory(decoderFactory).createPeerConnectionFactory()
     }
 
     private fun initializePeerConnections() {
@@ -160,14 +169,29 @@ class VideoViewWebRTC @JvmOverloads constructor(
 
     private fun createPeerConnection(factory: PeerConnectionFactory?): PeerConnection? {
         val iceServers = ArrayList<IceServer>()
-        iceServers.add(IceServer("stun:stun.l.google.com:19302"))
+        // iceServers.add(IceServer("stun:stun.l.google.com:19302"))
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
         val pcConstraints = MediaConstraints()
         val pcObserver: PeerConnection.Observer = object : PeerConnection.Observer {
             override fun onSignalingChange(signalingState: PeerConnection.SignalingState) {}
-            override fun onIceConnectionChange(iceConnectionState: PeerConnection.IceConnectionState) {}
-            override fun onStandardizedIceConnectionChange(newState: PeerConnection.IceConnectionState) {}
-            override fun onConnectionChange(newState: PeerConnection.PeerConnectionState) {}
+            override fun onIceConnectionChange(iceConnectionState: PeerConnection.IceConnectionState) {
+            }
+
+            override fun onStandardizedIceConnectionChange(newState: PeerConnection.IceConnectionState) {
+                Log.d(TAG, "Client: onStandardizedIceConnectionChange: ")
+            }
+
+            override fun onConnectionChange(newState: PeerConnection.PeerConnectionState) {
+                Log.d(TAG, "Client: onConnectionChange: $newState")
+
+                if (newState.name == "FAILED") {
+                    ProgressEvents.onNext(ProgressEvents.Events.WEBRtcClientFailed)
+                }
+                if (newState.name == "DISCONNECTED") {
+                    ProgressEvents.onNext(ProgressEvents.Events.WEBRtcClientDisconnected)
+                }
+            }
+
             override fun onIceConnectionReceivingChange(b: Boolean) {}
             override fun onIceGatheringChange(iceGatheringState: PeerConnection.IceGatheringState) {}
 
@@ -194,7 +218,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
 
                 val remoteAudioTrack = mediaStream.audioTracks[0]
                 remoteAudioTrack.setEnabled(false) // start mute
-                
+
                 remoteVideoTrack.addSink(this@VideoViewWebRTC)
             }
 
@@ -260,11 +284,21 @@ class VideoViewWebRTC @JvmOverloads constructor(
         fun handleWebRtcEvent(webRtcEvent: JSONObject) {
             when (webRtcEvent.getString("type")) {
                 "offer" -> {
-                    peerConnection!!.setRemoteDescription(SimpleSdpObserver(), SessionDescription(SessionDescription.Type.OFFER, webRtcEvent.getString("sdp")))
+                    peerConnection!!.setRemoteDescription(
+                        SimpleSdpObserver(),
+                        SessionDescription(
+                            SessionDescription.Type.OFFER,
+                            webRtcEvent.getString("sdp")
+                        )
+                    )
                     doAnswer()
                 }
                 "candidate" -> {
-                    val candidate = IceCandidate(webRtcEvent.getString("id"), webRtcEvent.getInt("label"), webRtcEvent.getString("candidate"))
+                    val candidate = IceCandidate(
+                        webRtcEvent.getString("id"),
+                        webRtcEvent.getInt("label"),
+                        webRtcEvent.getString("candidate")
+                    )
                     peerConnection!!.addIceCandidate(candidate)
                 }
                 "bye" -> {
