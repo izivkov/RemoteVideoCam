@@ -47,8 +47,6 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
     @Override
     override fun onPause() {
         super.onPause()
-//        Camera.disconnect()
-//        Display.disconnect(this)
     }
 
     @Override

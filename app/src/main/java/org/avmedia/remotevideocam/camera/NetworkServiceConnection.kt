@@ -6,6 +6,7 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.util.Log
+import org.avmedia.remotevideocam.customcomponents.ProgressEvents
 import org.avmedia.remotevideocam.display.Utils
 import org.avmedia.remotevideocam.utils.ConnectionUtils
 import org.json.JSONException
@@ -124,6 +125,7 @@ class NetworkServiceConnection : ILocalConnection {
                 // Internal bookkeeping code goes here.
 
                 Timber.i("onServiceLost")
+                ProgressEvents.onNext(ProgressEvents.Events.Disconnected)
             }
 
             override fun onDiscoveryStopped(serviceType: String) {
@@ -170,6 +172,8 @@ class NetworkServiceConnection : ILocalConnection {
                 Timber.d("Same IP.")
                 return
             }
+
+            ProgressEvents.onNext(ProgressEvents.Events.Connected)
 
             (context as Activity?)
                 ?.runOnUiThread(

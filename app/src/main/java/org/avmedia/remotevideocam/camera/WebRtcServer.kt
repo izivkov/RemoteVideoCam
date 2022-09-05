@@ -231,7 +231,7 @@ class WebRtcServer : IVideoServer {
 
             override fun onConnectionChange(newState: PeerConnectionState) {
                 Log.d(TAG, "Server: onConnectionChange: $newState")
-                if (/*newState.name == "FAILED" ||*/ newState.name == "DISCONNECTED") {
+                if (newState.name == "FAILED") {
                     ProgressEvents.onNext(ProgressEvents.Events.WEBRtcServerFailed)
                 }
             }

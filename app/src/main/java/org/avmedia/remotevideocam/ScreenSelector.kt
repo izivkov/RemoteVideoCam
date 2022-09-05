@@ -47,22 +47,16 @@ object ScreenSelector {
                 Log.i(TAG, "Got $it event")
 
                 when (it) {
+                    ProgressEvents.Events.Disconnected -> {
+                        showScreen("waiting for connection screen")
+                    }
+                    ProgressEvents.Events.Connected -> {
+                        showScreen("main screen")
+                    }
                     ProgressEvents.Events.ShowWaitingForConnectionScreen -> {
                         showScreen("waiting for connection screen")
                     }
                     ProgressEvents.Events.ShowMainScreen -> {
-                        showScreen("main screen")
-                    }
-                    ProgressEvents.Events.CameraDisconnected -> {
-                        showScreen("waiting for connection screen")
-                    }
-                    ProgressEvents.Events.DisplayDisconnected -> {
-                        showScreen("waiting for connection screen")
-                    }
-                    ProgressEvents.Events.ConnectionDisplaySuccessful -> {
-                        showScreen("main screen")
-                    }
-                    ProgressEvents.Events.ConnectionCameraSuccessful -> {
                         showScreen("main screen")
                     }
                     ProgressEvents.Events.ShowCameraScreen -> {

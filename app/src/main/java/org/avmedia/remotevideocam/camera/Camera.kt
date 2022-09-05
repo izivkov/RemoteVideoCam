@@ -78,12 +78,10 @@ object Camera {
                 when (event!!.getString("command")) {
                     "CONNECTED" -> {
                         Timber.d("CONNECTED")
-                        ProgressEvents.onNext(ProgressEvents.Events.ConnectionCameraSuccessful)
                         videoServer.setConnected(true)
                     }
                     "DISCONNECTED" -> {
                         Timber.d("DISCONNECTED")
-                        ProgressEvents.onNext(ProgressEvents.Events.CameraDisconnected)
                         videoServer.setConnected(false)
                     }
                 }

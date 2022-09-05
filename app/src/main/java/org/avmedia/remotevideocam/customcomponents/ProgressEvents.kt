@@ -23,10 +23,8 @@ object ProgressEvents {
         object Init : Events()
 
         object ShowWaitingForConnectionScreen : Events()
-        object ConnectionDisplaySuccessful : Events()
-        object ConnectionCameraSuccessful : Events()
-        object DisplayDisconnected : Events()
-        object CameraDisconnected : Events()
+        object Connected : Events()
+        object Disconnected : Events()
         object ShowMainScreen: Events()
         object ShowCameraScreen: Events(payload = null)
         object ShowDisplayScreen: Events()

@@ -110,23 +110,14 @@ object NetworkServiceConnection : ILocalConnection {
 
                 while (true) {
                     client = serverSocket.accept()
-                    Timber.i("Connected...")
 
-                    // only connect if the app is NOT running on this device.
-                    if (client.inetAddress.hostAddress != Utils.getIPAddress(true)) {
-                        ProgressEvents.onNext(ProgressEvents.Events.ConnectionDisplaySuccessful)
-                        break
-                    } else {
-                        Timber.i("Trying to connect to myself. Ignore")
-                    }
+                    val reader = Scanner(DataInputStream(BufferedInputStream(client.getInputStream())))
+                    val writer = client.getOutputStream()
+
+                    clientInfo = ClientInfo(reader, writer)
+
+                    println("Client connected: ${client.inetAddress.hostAddress}")
                 }
-
-                val reader = Scanner(DataInputStream(BufferedInputStream(client.getInputStream())))
-                val writer = client.getOutputStream()
-
-                clientInfo = ClientInfo(reader, writer)
-
-                println("Client connected: ${client.inetAddress.hostAddress}")
             } catch (e: Exception) {
                 Timber.i("Got exception: %s", e)
                 close()
@@ -183,7 +174,6 @@ object NetworkServiceConnection : ILocalConnection {
                 serverSocket.close()
             } catch (e: Exception) {
             } finally {
-                ProgressEvents.onNext(ProgressEvents.Events.DisplayDisconnected)
             }
         }
 
