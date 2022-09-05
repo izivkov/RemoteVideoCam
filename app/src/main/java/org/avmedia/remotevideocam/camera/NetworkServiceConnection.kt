@@ -168,7 +168,8 @@ class NetworkServiceConnection : ILocalConnection {
             val host: String = serviceInfo.host.hostAddress
             Timber.d("PORT: $port, address: $host")
 
-            if (host == Utils.getIPAddress(true)) {
+            // do not connect to my own display
+            if (Utils.isMe(host)) {
                 Timber.d("Same IP.")
                 return
             }

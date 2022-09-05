@@ -14,11 +14,41 @@ import android.util.AttributeSet
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.IHideableLayout
+import org.avmedia.remotevideocam.customcomponents.ProgressEvents
+import timber.log.Timber
 
 class DisplayLayout @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : RelativeLayout(context, attrs, defStyleAttr), IHideableLayout {
+
+    init {
+        hide()
+        createAppEventsSubscription()
+    }
+
+    private fun createAppEventsSubscription(): Disposable =
+        ProgressEvents.connectionEventFlowable
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext {
+                when (it) {
+                    ProgressEvents.Events.ShowDisplayScreen -> {
+                        show()
+                    }
+                    else -> {
+                        hide()
+                    }
+                }
+            }
+            .subscribe(
+                { }
+            ) { throwable ->
+                Timber.d(
+                    "Got error on subscribe: $throwable"
+                )
+            }
 
     override fun show() {
         visibility = View.VISIBLE

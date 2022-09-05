@@ -6,7 +6,6 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdManager.RegistrationListener
 import android.net.nsd.NsdServiceInfo
-import org.avmedia.remotevideocam.customcomponents.ProgressEvents
 import timber.log.Timber
 import java.io.BufferedInputStream
 import java.io.DataInputStream
@@ -81,13 +80,15 @@ object NetworkServiceConnection : ILocalConnection {
         socketHandler = SocketHandler(messageQueue)
 
         thread {
-            val client: SocketHandler.ClientInfo = socketHandler.connect(port) ?: return@thread
+            while (true) {
+                val client: SocketHandler.ClientInfo = socketHandler.connect(port) ?: continue
 
-            thread {
-                socketHandler.runSender(client.writer)
-            }
-            thread {
-                socketHandler.runReceiver(client.reader)
+                thread {
+                    socketHandler.runSender(client.writer)
+                }
+                thread {
+                    socketHandler.runReceiver(client.reader)
+                }
             }
         }
     }
@@ -111,12 +112,16 @@ object NetworkServiceConnection : ILocalConnection {
                 while (true) {
                     client = serverSocket.accept()
 
-                    val reader = Scanner(DataInputStream(BufferedInputStream(client.getInputStream())))
+                    // do not connect to my own camera
+                    if (Utils.isMe(client.inetAddress.hostAddress)) {
+                        return null
+                    }
+
+                    val reader =
+                        Scanner(DataInputStream(BufferedInputStream(client.getInputStream())))
                     val writer = client.getOutputStream()
 
                     clientInfo = ClientInfo(reader, writer)
-
-                    println("Client connected: ${client.inetAddress.hostAddress}")
                 }
             } catch (e: Exception) {
                 Timber.i("Got exception: %s", e)

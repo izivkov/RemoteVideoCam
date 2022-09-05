@@ -38,6 +38,10 @@ object Utils {
         toneGen.startTone(tgTone, duration)
     }
 
+    fun isMe(otherIP: String): Boolean {
+        return otherIP == getIPAddress(true)
+    }
+
     fun getIPAddress(useIPv4: Boolean): String? {
         try {
             val interfaces: List<NetworkInterface> = Collections.list(NetworkInterface.getNetworkInterfaces())
