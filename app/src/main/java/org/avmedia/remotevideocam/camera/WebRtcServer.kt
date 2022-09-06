@@ -88,13 +88,7 @@ class WebRtcServer : IVideoServer {
         get() = false
 
     override fun startClient() {
-        emitEvent(ConnectionUtils.createStatus("VIDEO_PROTOCOL", "WEBRTC"))
-        sendServerUrl()
         emitEvent(ConnectionUtils.createStatus("VIDEO_COMMAND", "START"))
-    }
-
-    override fun sendServerUrl() {
-        emitEvent(ConnectionUtils.createStatus("VIDEO_SERVER_URL", ""))
     }
 
     override fun sendVideoStoppedStatus() {

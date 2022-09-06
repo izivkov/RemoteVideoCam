@@ -11,7 +11,6 @@ interface IVideoServer {
     fun init(context: Context?)
     val isRunning: Boolean
     fun startClient()
-    fun sendServerUrl()
     fun sendVideoStoppedStatus()
     fun setView(view: SurfaceView?)
     fun setView(view: TextureView?)
