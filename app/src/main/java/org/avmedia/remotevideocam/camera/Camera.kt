@@ -29,7 +29,6 @@ object Camera {
         videoServer.setView(view)
 
         handleDisplayEvents()
-        handleDisplayCommands()
     }
 
     internal class DataReceived : IDataReceived {
@@ -68,37 +67,5 @@ object Camera {
             .subscribe(
                 { info -> send(info) }
             ) { error -> Timber.d("Error occurred in CameraToDisplayEventBus: %s", error) }
-    }
-
-    @SuppressLint("LogNotTimber")
-    fun handleDisplayCommands() {
-        DisplayToCameraEventBus.subscribe(
-            this.javaClass.simpleName,
-            { event: JSONObject? ->
-                when (event!!.getString("command")) {
-                    "CONNECTED" -> {
-                        Timber.d("CONNECTED")
-                        videoServer.setConnected(true)
-                    }
-                    "DISCONNECTED" -> {
-                        Timber.d("DISCONNECTED")
-                        videoServer.setConnected(false)
-                    }
-                }
-            },
-            { error: Throwable? ->
-                Log.d(
-                    TAG,
-                    "Error occurred in handleControllerWebRtcEvents: $error"
-                )
-            },
-            { commandJsn: JSONObject? ->
-                commandJsn!!.has(
-                    "command"
-                ) && ("CONNECTED" == commandJsn.getString("command") || "DISCONNECTED" == commandJsn.getString(
-                    "command"
-                )) // filter everything else
-            }
-        )
     }
 }

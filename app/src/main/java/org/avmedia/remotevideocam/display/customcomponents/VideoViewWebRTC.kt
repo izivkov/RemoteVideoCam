@@ -15,6 +15,7 @@ import android.util.AttributeSet
 import android.util.Log
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
+import org.avmedia.remotevideocam.ScreenSelector
 import org.avmedia.remotevideocam.customcomponents.ProgressEvents
 import org.avmedia.remotevideocam.display.CameraStatusEventBus
 import org.avmedia.remotevideocam.display.ILocalConnection
@@ -56,25 +57,8 @@ class VideoViewWebRTC @JvmOverloads constructor(
             Timber.i("Failed to send...")
         })
 
-        CameraStatusEventBus.addSubject("VIDEO_COMMAND")
-        CameraStatusEventBus.subscribe(this.javaClass.simpleName, "VIDEO_COMMAND", onNext = {
-            processVideoCommand(it as String)
-        })
-
         createAppEventsSubscription()
         rootEglBase = EglBase.create()
-    }
-
-    private fun processVideoCommand(command: String) {
-
-        when (command) {
-            "STOP" -> {
-                stop()
-            }
-            "START" -> {
-                start()
-            }
-        }
     }
 
     private fun start() {
@@ -99,7 +83,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
     }
 
     private fun initializeSurfaceViews() {
-        // release() // just in case
+        release() // just in case
 
         init(rootEglBase?.eglBaseContext, null)
         setEnableHardwareScaler(true)
@@ -139,6 +123,12 @@ class VideoViewWebRTC @JvmOverloads constructor(
                     }
                     ProgressEvents.Events.WEBRtcClientFailed -> {
                         start()
+                    }
+                    ProgressEvents.Events.Connected -> {
+                        start()
+                    }
+                    ProgressEvents.Events.Disconnected -> {
+                        stop()
                     }
                 }
             }

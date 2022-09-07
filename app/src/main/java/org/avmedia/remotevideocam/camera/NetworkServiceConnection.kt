@@ -176,15 +176,6 @@ class NetworkServiceConnection : ILocalConnection {
 
             ProgressEvents.onNext(ProgressEvents.Events.Connected)
 
-            (context as Activity?)
-                ?.runOnUiThread(
-                    Runnable {
-                        try {
-                            DisplayToCameraEventBus.emitEvent(JSONObject("{command: \"CONNECTED\"}"))
-                        } catch (e: JSONException) {
-                            e.printStackTrace()
-                        }
-                    })
             object : Thread("Receiver Thread") {
                 override fun run() {
                     val clientInfo = socketHandler!!.connect(host, port)
@@ -301,15 +292,6 @@ class NetworkServiceConnection : ILocalConnection {
                     return
                 }
                 client!!.close()
-                (context as Activity?)
-                    ?.runOnUiThread(
-                        Runnable {
-                            try {
-                                DisplayToCameraEventBus.emitEvent( JSONObject("{command: \"DISCONNECTED\"}") )
-                            } catch (e: JSONException) {
-                                e.printStackTrace()
-                            }
-                        })
             } catch (e: IOException) {
                 e.printStackTrace()
             }
