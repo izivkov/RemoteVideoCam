@@ -26,29 +26,7 @@ class DisplayLayout @JvmOverloads constructor(
 
     init {
         hide()
-        createAppEventsSubscription()
     }
-
-    private fun createAppEventsSubscription(): Disposable =
-        ProgressEvents.connectionEventFlowable
-            .observeOn(AndroidSchedulers.mainThread())
-            .doOnNext {
-                when (it) {
-                    ProgressEvents.Events.ShowDisplayScreen -> {
-                        show()
-                    }
-                    else -> {
-                        hide()
-                    }
-                }
-            }
-            .subscribe(
-                { }
-            ) { throwable ->
-                Timber.d(
-                    "Got error on subscribe: $throwable"
-                )
-            }
 
     override fun show() {
         visibility = View.VISIBLE

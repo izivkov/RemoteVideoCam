@@ -80,15 +80,13 @@ object NetworkServiceConnection : ILocalConnection {
         socketHandler = SocketHandler(messageQueue)
 
         thread {
-            while (true) {
-                val client: SocketHandler.ClientInfo = socketHandler.connect(port) ?: continue
+            val client: SocketHandler.ClientInfo = socketHandler.connect(port) ?: return@thread
 
-                thread {
-                    socketHandler.runSender(client.writer)
-                }
-                thread {
-                    socketHandler.runReceiver(client.reader)
-                }
+            thread {
+                socketHandler.runSender(client.writer)
+            }
+            thread {
+                socketHandler.runReceiver(client.reader)
             }
         }
     }
@@ -114,7 +112,7 @@ object NetworkServiceConnection : ILocalConnection {
 
                     // do not connect to my own camera
                     if (Utils.isMe(client.inetAddress.hostAddress)) {
-                        return null
+                        continue
                     }
 
                     val reader =
@@ -122,13 +120,13 @@ object NetworkServiceConnection : ILocalConnection {
                     val writer = client.getOutputStream()
 
                     clientInfo = ClientInfo(reader, writer)
+                    return clientInfo
                 }
             } catch (e: Exception) {
                 Timber.i("Got exception: %s", e)
                 close()
                 return null
             }
-            return clientInfo
         }
 
         fun runReceiver(reader: Scanner?) {

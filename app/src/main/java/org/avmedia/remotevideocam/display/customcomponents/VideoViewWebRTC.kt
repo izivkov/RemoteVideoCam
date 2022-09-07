@@ -62,7 +62,6 @@ class VideoViewWebRTC @JvmOverloads constructor(
         })
 
         createAppEventsSubscription()
-
         rootEglBase = EglBase.create()
     }
 
@@ -100,7 +99,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
     }
 
     private fun initializeSurfaceViews() {
-        release() // just in case
+        // release() // just in case
 
         init(rootEglBase?.eglBaseContext, null)
         setEnableHardwareScaler(true)
@@ -112,7 +111,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
         peerConnection!!.receivers[0].track()?.setEnabled(false)
     }
 
-    private fun unmute() {
+    private fun unMute() {
         peerConnection!!.receivers[0].track()?.setEnabled(true)
     }
 
@@ -133,7 +132,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
                         mute()
                     }
                     ProgressEvents.Events.Unmute -> {
-                        unmute()
+                        unMute()
                     }
                     ProgressEvents.Events.WEBRtcClientDisconnected -> {
                         stop()

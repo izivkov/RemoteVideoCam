@@ -39,7 +39,7 @@ class PreConnectLayout @JvmOverloads constructor(
                         show()
                     }
                     else -> {
-                        hide()
+                        // hide()
                     }
                 }
             }

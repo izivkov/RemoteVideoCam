@@ -15,4 +15,5 @@ interface IVideoServer {
     fun setView(view: SurfaceView?)
     fun setView(view: TextureView?)
     fun setView(view: SurfaceViewRenderer?)
+    fun sendServerUrl()
 }

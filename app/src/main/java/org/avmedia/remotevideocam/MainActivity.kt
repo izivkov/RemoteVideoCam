@@ -36,6 +36,11 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
         setScreenCharacteristics() // this should be called after "setContentView()"
         getPermission()
 
+        ScreenSelector.add("main screen", binding.mainLayout)
+        ScreenSelector.add("waiting for connection screen", binding.waitingToConnectLayout)
+        ScreenSelector.add("display screen", binding.displayLayout)
+        ScreenSelector.add("camera screen", binding.cameraLayout)
+
         ProgressEvents.onNext(ProgressEvents.Events.ShowWaitingForConnectionScreen)
     }
 
