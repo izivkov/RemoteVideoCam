@@ -14,7 +14,7 @@ import android.content.Context
 import android.util.AttributeSet
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
-import org.avmedia.remotevideocam.customcomponents.ProgressEvents
+import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.display.ILocalConnection
 import org.avmedia.remotevideocam.display.NetworkServiceConnection
 import org.avmedia.remotevideocam.display.CameraStatusEventBus

@@ -12,7 +12,7 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import org.avmedia.remotevideocam.customcomponents.ProgressEvents
+import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.customcomponents.Button
 
 class FlipCamera @JvmOverloads constructor(

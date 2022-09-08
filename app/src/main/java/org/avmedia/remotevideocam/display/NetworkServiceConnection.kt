@@ -6,7 +6,7 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdManager.RegistrationListener
 import android.net.nsd.NsdServiceInfo
-import org.avmedia.remotevideocam.customcomponents.ProgressEvents
+import org.avmedia.remotevideocam.utils.ProgressEvents
 import timber.log.Timber
 import java.io.BufferedInputStream
 import java.io.DataInputStream
@@ -25,7 +25,7 @@ object NetworkServiceConnection : ILocalConnection {
 
     private const val TAG = "NetworkServiceConn"
     private var mNsdManager: NsdManager? = null
-    private var SERVICE_NAME = "REMOTE_VIDEO_CAM" + "-" + Utils.getIPAddress(true)
+    private var SERVICE_NAME = "REMOTE_VIDEO_CAM" + "-" + Utils.getMyIP()
     private const val SERVICE_TYPE = "_org_avmedia_remotevideocam._tcp."
 
     private var dataReceivedCallback: IDataReceived? = null
@@ -113,7 +113,7 @@ object NetworkServiceConnection : ILocalConnection {
                     Timber.i("Connected...")
 
                     // only connect if the app is NOT running on this device.
-                    if (client.inetAddress.hostAddress != Utils.getIPAddress(true)) {
+                    if (client.inetAddress.hostAddress != Utils.getMyIP()) {
                         ProgressEvents.onNext(ProgressEvents.Events.ConnectionDisplaySuccessful)
                         break
                     } else {
@@ -155,6 +155,7 @@ object NetworkServiceConnection : ILocalConnection {
                 reader?.close()
                 Timber.d("got exception $ex")
                 close()
+                ProgressEvents.onNext(ProgressEvents.Events.CameraDisconnected)
             } finally {
             }
         }
@@ -170,6 +171,7 @@ object NetworkServiceConnection : ILocalConnection {
             } catch (e: Exception) {
                 Timber.d("runSender InterruptedException: {e}")
                 writer?.close()
+                ProgressEvents.onNext(ProgressEvents.Events.CameraDisconnected)
             } finally {
             }
             Timber.d("end of runSender thread...")

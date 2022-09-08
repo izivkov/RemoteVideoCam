@@ -1,4 +1,4 @@
-package org.avmedia.remotevideocam.customcomponents
+package org.avmedia.remotevideocam.utils
 
 import io.reactivex.Flowable
 import io.reactivex.processors.PublishProcessor
@@ -22,12 +22,12 @@ object ProgressEvents {
 
         object Init : Events()
 
+        object ShowWaitingForConnectionScreen : Events()
         object ConnectionDisplaySuccessful : Events()
         object ConnectionCameraSuccessful : Events()
         object DisplayDisconnected : Events()
         object CameraDisconnected : Events()
         object ShowMainScreen: Events()
-        object ShowCameraScreen: Events()
         object StartCamera: Events(payload = null)
         object StartDisplay: Events()
         object ToggleMirror: Events()

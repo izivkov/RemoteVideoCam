@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
-import org.avmedia.remotevideocam.customcomponents.ProgressEvents
+import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.json.JSONException
 import org.json.JSONObject
 import timber.log.Timber

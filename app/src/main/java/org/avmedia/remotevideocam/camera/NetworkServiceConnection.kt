@@ -25,7 +25,7 @@ import java.util.concurrent.BlockingQueue
 class NetworkServiceConnection : ILocalConnection {
     private var context: Context? = null
     private val REMOTE_SERVICE_NAME = "REMOTE_VIDEO_CAM"
-    private val MY_SERVICE_NAME = "REMOTE_VIDEO_CAM" + "-" + Utils.getIPAddress(true)
+    private val MY_SERVICE_NAME = "REMOTE_VIDEO_CAM" + "-" + Utils.getMyIP()
     private val ALL_SERVICE_TYPES = "_services._dns-sd._udp"
     private val SERVICE_TYPE = "_org_avmedia_remotevideocam._tcp."
 
@@ -166,7 +166,7 @@ class NetworkServiceConnection : ILocalConnection {
             val host: String = serviceInfo.host.hostAddress
             Timber.d("PORT: $port, address: $host")
 
-            if (host == Utils.getIPAddress(true)) {
+            if (host == Utils.getMyIP()) {
                 Timber.d("Same IP.")
                 return
             }

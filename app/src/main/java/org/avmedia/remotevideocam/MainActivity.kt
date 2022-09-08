@@ -1,34 +1,38 @@
 package org.avmedia.remotevideocam
 
 import android.Manifest
-import android.content.DialogInterface
+import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.camera.Camera
-import org.avmedia.remotevideocam.customcomponents.ProgressEvents
+import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.databinding.ActivityMainBinding
 import org.avmedia.remotevideocam.display.Display
-import org.avmedia.remotevideocam.display.Utils
 import pub.devrel.easypermissions.AfterPermissionGranted
 import pub.devrel.easypermissions.AppSettingsDialog
 import pub.devrel.easypermissions.EasyPermissions
 import timber.log.Timber
-
+import kotlin.system.exitProcess
 
 class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
     EasyPermissions.RationaleCallbacks {
 
     private lateinit var binding: ActivityMainBinding
     private val TAG = "MainActivity"
+
+    init {
+        instance = this
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,37 +41,38 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
 
         setContentView(binding.root)
 
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        // window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         setScreenCharacteristics() // this should be called after "setContentView()"
         getPermission()
 
         ScreenSelector.add("main screen", binding.mainLayout)
+        ScreenSelector.add("waiting for connection screen", binding.waitingToConnectLayout)
         ScreenSelector.add("display screen", binding.displayLayout)
         ScreenSelector.add("camera screen", binding.cameraLayout)
 
-        ProgressEvents.onNext(ProgressEvents.Events.ShowMainScreen)
         createAppEventsSubscription()
+        ProgressEvents.onNext(ProgressEvents.Events.ShowWaitingForConnectionScreen)
     }
 
     @Override
     override fun onPause() {
         super.onPause()
-        Camera.disconnect()
-        Display.disconnect(this)
     }
 
     @Override
     override fun onResume() {
         super.onResume()
 
-        // Open display first, which waits on 'accept'
-        Display.init(this, binding.videoView)
-        Display.connect(this)
+        if (!Camera.isConnected()) {
+            // Open display first, which waits on 'accept'
+            Display.init(this, binding.videoView)
+            Display.connect(this)
 
-        Camera.init(this, binding.videoWindow)
-        Camera.connect(this)
+            Camera.init(this, binding.videoWindow)
+            Camera.connect(this)
+        }
     }
 
     override fun onPermissionsDenied(requestCode: Int, perms: MutableList<String>) {
@@ -142,10 +147,6 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
         // Not yet
     }
 
-    companion object {
-        private const val RC_ALL_PERMISSIONS = 123
-    }
-
     private fun createAppEventsSubscription(): Disposable =
         ProgressEvents.connectionEventFlowable
             .observeOn(AndroidSchedulers.mainThread())
@@ -153,11 +154,11 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
 
                 when (it) {
                     ProgressEvents.Events.DisplayDisconnected -> {
-                        exitWithDialog()
+                        restartApp()
                     }
 
                     ProgressEvents.Events.CameraDisconnected -> {
-                        exitWithDialog()
+                        restartApp()
                     }
                 }
             }
@@ -169,16 +170,28 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
                     )
                 })
 
-    private fun exitWithDialog() {
-        Utils.beep()
+    private fun restartApp() {
+        Handler()
+            .postDelayed(
+                {
+                    val pm: PackageManager = this.packageManager
+                    val intent =
+                        pm.getLaunchIntentForPackage(this.packageName)
+                    this.finishAffinity() // Finishes all activities.
+                    this.startActivity(intent) // Start the launch activity
+                    exitProcess(0) // System finishes and automatically relaunches us.
+                },
+                100
+            )
+    }
 
-        val builder: AlertDialog.Builder = AlertDialog.Builder(this)
-        builder.setMessage("Remote device closed. Exiting...")
-            .setCancelable(false)
-            .setPositiveButton("OK", DialogInterface.OnClickListener { dialog, id ->
-                finish()
-            })
-        val alert: AlertDialog = builder.create()
-        alert.show()
+    companion object {
+        private const val RC_ALL_PERMISSIONS = 123
+        private var instance: MainActivity? = null
+
+        // Make context available from anywhere in the code (not yet used).
+        fun applicationContext() : Context {
+            return instance!!.applicationContext
+        }
     }
 }

@@ -13,7 +13,7 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import org.avmedia.remotevideocam.R
-import org.avmedia.remotevideocam.customcomponents.ProgressEvents
+import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.customcomponents.Button
 
 class Sound @JvmOverloads constructor(

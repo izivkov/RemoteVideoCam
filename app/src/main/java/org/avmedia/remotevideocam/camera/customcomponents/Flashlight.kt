@@ -13,7 +13,7 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import org.avmedia.remotevideocam.camera.FlashlightHandler
-import org.avmedia.remotevideocam.customcomponents.ProgressEvents
+import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.customcomponents.Button
 
 @SuppressLint("ServiceCast")
