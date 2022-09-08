@@ -24,7 +24,7 @@ object NetworkServiceConnection : ILocalConnection {
 
     private const val TAG = "NetworkServiceConn"
     private var mNsdManager: NsdManager? = null
-    private var SERVICE_NAME = "REMOTE_VIDEO_CAM" + "-" + Utils.getIPAddress(true)
+    private var SERVICE_NAME = "REMOTE_VIDEO_CAM" + "-" + Utils.getMyIP()
     private const val SERVICE_TYPE = "_org_avmedia_remotevideocam._tcp."
 
     private var dataReceivedCallback: IDataReceived? = null

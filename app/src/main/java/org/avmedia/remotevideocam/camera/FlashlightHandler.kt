@@ -4,7 +4,6 @@ import android.content.Context
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraManager
 import android.os.Build
-import org.webrtc.ContextUtils.getApplicationContext
 
 object FlashlightHandler {
     private var flashlightOn = false

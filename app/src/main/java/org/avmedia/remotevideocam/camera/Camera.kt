@@ -3,6 +3,8 @@ package org.avmedia.remotevideocam.camera
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
 import org.avmedia.remotevideocam.customcomponents.ProgressEvents
 import org.json.JSONException
@@ -28,8 +30,30 @@ object Camera {
         videoServer.init(context)
         videoServer.setView(view)
 
+        createAppEventsSubscription()
         handleDisplayEvents()
     }
+
+    private fun createAppEventsSubscription(): Disposable =
+        ProgressEvents.connectionEventFlowable
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnNext {
+                when (it) {
+                    ProgressEvents.Events.Connected -> {
+                        videoServer.setConnected(true)
+                    }
+                    ProgressEvents.Events.Disconnected -> {
+                        videoServer.setConnected(false)
+                    }
+                }
+            }
+            .subscribe(
+                { },
+                { throwable ->
+                    Timber.d(
+                        "Got error on subscribe: $throwable"
+                    )
+                })
 
     internal class DataReceived : IDataReceived {
         override fun dataReceived(commandStr: String?) {

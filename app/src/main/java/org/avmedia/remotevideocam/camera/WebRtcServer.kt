@@ -387,7 +387,7 @@ class WebRtcServer : IVideoServer {
                     ProgressEvents.Events.ToggleFlashlight -> toggleFlashlight()
                     ProgressEvents.Events.WEBRtcServerFailed -> {
                         // initializePeerConnections()
-                        // startServer()
+                        startServer()
                     }
                 }
             }

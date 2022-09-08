@@ -8,15 +8,11 @@ import android.net.nsd.NsdServiceInfo
 import android.util.Log
 import org.avmedia.remotevideocam.customcomponents.ProgressEvents
 import org.avmedia.remotevideocam.display.Utils
-import org.avmedia.remotevideocam.utils.ConnectionUtils
-import org.json.JSONException
-import org.json.JSONObject
 import timber.log.Timber
 import java.io.BufferedInputStream
 import java.io.DataInputStream
 import java.io.IOException
 import java.io.OutputStream
-import java.net.InetAddress
 import java.net.Socket
 import java.nio.charset.StandardCharsets
 import java.util.*
@@ -26,7 +22,7 @@ import java.util.concurrent.BlockingQueue
 class NetworkServiceConnection : ILocalConnection {
     private var context: Context? = null
     private val REMOTE_SERVICE_NAME = "REMOTE_VIDEO_CAM"
-    private val MY_SERVICE_NAME = "REMOTE_VIDEO_CAM" + "-" + Utils.getIPAddress(true)
+    private val MY_SERVICE_NAME = "REMOTE_VIDEO_CAM" + "-" + Utils.getMyIP()
     private val ALL_SERVICE_TYPES = "_services._dns-sd._udp"
     private val SERVICE_TYPE = "_org_avmedia_remotevideocam._tcp."
 
@@ -65,7 +61,7 @@ class NetworkServiceConnection : ILocalConnection {
         }
     }
 
-    override fun isConnected (): Boolean {
+    override fun isConnected(): Boolean {
         return socketHandler != null && socketHandler!!.isConnected()
     }
 
@@ -101,7 +97,7 @@ class NetworkServiceConnection : ILocalConnection {
         }
     }
 
-    private fun createDiscoveryListener() : NsdManager.DiscoveryListener {
+    private fun createDiscoveryListener(): NsdManager.DiscoveryListener {
         return object : NsdManager.DiscoveryListener {
             // Called as soon as service discovery begins.
             override fun onDiscoveryStarted(regType: String) {
@@ -139,7 +135,7 @@ class NetworkServiceConnection : ILocalConnection {
                     mNsdManager?.stopServiceDiscovery(this)
                     // re-try connecting
                     runConnection()
-                } catch (e:Exception) {
+                } catch (e: Exception) {
                     Timber.d("Got exception $e")
                 }
             }
@@ -150,6 +146,7 @@ class NetworkServiceConnection : ILocalConnection {
             }
         }
     }
+
     var mResolveListener: NsdManager.ResolveListener = object : NsdManager.ResolveListener {
         override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
             // Called when the resolve fails. Use the error code to debug.
@@ -264,7 +261,7 @@ class NetworkServiceConnection : ILocalConnection {
                 try {
                     val message = messageQueue.take()
                     Timber.i(TAG, "queue capacity: " + messageQueue.remainingCapacity())
-                    writer.write((message+"\n").toByteArray(StandardCharsets.UTF_8))
+                    writer.write((message + "\n").toByteArray(StandardCharsets.UTF_8))
 
                 } catch (e: InterruptedException) {
                     Timber.i(TAG, "runSender got exception: $e")

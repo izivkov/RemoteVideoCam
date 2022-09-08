@@ -71,7 +71,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
 
     private fun stop() {
         hide()
-        release()
+        // release()
     }
 
     fun show() {

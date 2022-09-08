@@ -1,6 +1,7 @@
 package org.avmedia.remotevideocam
 
 import android.Manifest
+import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -22,6 +23,10 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
 
     private lateinit var binding: ActivityMainBinding
     private val TAG = "MainActivity"
+
+    init {
+        instance = this
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -137,5 +142,11 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
 
     companion object {
         private const val RC_ALL_PERMISSIONS = 123
+        private var instance: MainActivity? = null
+
+        // Make context available from anywhere in the code (not yet used).
+        fun applicationContext() : Context {
+            return instance!!.applicationContext
+        }
     }
 }
