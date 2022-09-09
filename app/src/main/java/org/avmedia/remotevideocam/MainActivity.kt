@@ -42,7 +42,7 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
         setContentView(binding.root)
 
         // AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-        // window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         setScreenCharacteristics() // this should be called after "setContentView()"
         getPermission()
