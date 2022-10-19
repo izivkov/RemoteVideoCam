@@ -9,16 +9,22 @@
 
 package org.avmedia.remotevideocam.display
 
+import android.app.Activity
 import android.content.Context
 import android.content.Context.WIFI_SERVICE
+import android.graphics.Color
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.net.wifi.WifiManager
+import android.view.View
+import android.widget.Toast
+import androidx.core.content.ContextCompat
+import com.google.android.material.snackbar.Snackbar
 import org.avmedia.remotevideocam.MainActivity
+import org.avmedia.remotevideocam.R
 import timber.log.Timber
 import java.math.BigInteger
 import java.net.InetAddress
-import java.net.NetworkInterface
 import java.util.*
 
 object Utils {
@@ -61,5 +67,13 @@ object Utils {
         val byteIp = BigInteger.valueOf(longIp).toByteArray().reversedArray()
         val ipAddr = InetAddress.getByAddress(byteIp).hostAddress
         return ipAddr
+    }
+
+
+    fun toast(context: Context, message: String) {
+        Toast.makeText(
+            context, message,
+            Toast.LENGTH_LONG
+        ).show()
     }
 }

@@ -80,15 +80,19 @@ object NetworkServiceConnection : ILocalConnection {
     private fun runConnection() {
         socketHandler = SocketHandler(messageQueue)
 
-        thread {
-            val client: SocketHandler.ClientInfo = socketHandler.connect(port) ?: return@thread
+        try {
+            thread {
+                val client: SocketHandler.ClientInfo = socketHandler.connect(port) ?: return@thread
 
-            thread {
-                socketHandler.runSender(client.writer)
+                thread {
+                    socketHandler.runSender(client.writer)
+                }
+                thread {
+                    socketHandler.runReceiver(client.reader)
+                }
             }
-            thread {
-                socketHandler.runReceiver(client.reader)
-            }
+        } catch (e:Exception) {
+            Timber.d("Gor exception: $e")
         }
     }
 

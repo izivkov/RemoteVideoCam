@@ -11,13 +11,13 @@ import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.app.AppCompatDelegate
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.camera.Camera
-import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.databinding.ActivityMainBinding
 import org.avmedia.remotevideocam.display.Display
+import org.avmedia.remotevideocam.display.Utils.toast
+import org.avmedia.remotevideocam.utils.ProgressEvents
 import pub.devrel.easypermissions.AfterPermissionGranted
 import pub.devrel.easypermissions.AppSettingsDialog
 import pub.devrel.easypermissions.EasyPermissions
@@ -37,7 +37,16 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        binding = ActivityMainBinding.inflate(layoutInflater)
+        try {
+            binding = ActivityMainBinding.inflate(layoutInflater)
+        } catch (e: Exception) {
+            Timber.d("ActivityMainBinding failed : $e")
+            val message = "This app requires WiFi connection. Please connect both devices to the same WiFi network and restart..."
+            toast (this, message)
+            toast (this, message)
+            finish()
+            return
+        }
 
         setContentView(binding.root)
 
@@ -190,7 +199,7 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
         private var instance: MainActivity? = null
 
         // Make context available from anywhere in the code (not yet used).
-        fun applicationContext() : Context {
+        fun applicationContext(): Context {
             return instance!!.applicationContext
         }
     }

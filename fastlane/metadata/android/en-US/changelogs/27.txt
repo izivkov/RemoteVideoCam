@@ -1,0 +1,1 @@
+Exit gracefully when there is no WiFi connection.

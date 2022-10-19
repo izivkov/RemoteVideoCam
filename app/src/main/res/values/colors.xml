@@ -21,4 +21,6 @@
     <color name="colorPanel">@color/dark_dark_blue</color>
     <color name="shade">#59000000</color>
 
+    <color name="blue_grey_700">#455A64</color>
+
 </resources>
