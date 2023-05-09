@@ -1,15 +1,19 @@
 package org.avmedia.remotevideocam
 
 import android.Manifest
+import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.util.Rational
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
@@ -41,9 +45,10 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
             binding = ActivityMainBinding.inflate(layoutInflater)
         } catch (e: Exception) {
             Timber.d("ActivityMainBinding failed : $e")
-            val message = "This app requires WiFi connection. Please connect both devices to the same WiFi network and restart..."
-            toast (this, message)
-            toast (this, message)
+            val message =
+                "This app requires WiFi connection. Please connect both devices to the same WiFi network and restart..."
+            toast(this, message)
+            toast(this, message)
             finish()
             return
         }
@@ -63,6 +68,16 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
 
         createAppEventsSubscription()
         ProgressEvents.onNext(ProgressEvents.Events.ShowWaitingForConnectionScreen)
+    }
+
+    override fun onUserLeaveHint() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            enterPictureInPictureMode(
+                PictureInPictureParams.Builder()
+                    .setAspectRatio(Rational(16, 9))
+                    .build()
+            )
+        }
     }
 
     @Override
@@ -91,6 +106,21 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
     }
 
     override fun onPermissionsGranted(requestCode: Int, perms: MutableList<String>) {
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        if (ScreenSelector.currentScreen?.name == "display screen") {
+            ProgressEvents.onNext(ProgressEvents.Events.StartDisplay)
+        }
+
+        if (isInPictureInPictureMode) {
+        } else {
+        }
     }
 
     override fun onRequestPermissionsResult(

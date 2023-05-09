@@ -18,8 +18,9 @@ import java.util.*
 object ScreenSelector {
     private const val TAG = "ScreenSelector"
 
-    private class NamedScreen(var name: String, var layout: IHideableLayout)
+    class NamedScreen(var name: String, var layout: IHideableLayout)
     private var screens: MutableList<NamedScreen> = ArrayList()
+    var currentScreen: NamedScreen? = null
 
     init {
         createAppEventsSubscription()
@@ -31,10 +32,12 @@ object ScreenSelector {
 
     private fun showScreen(name: String) {
         for (screen in screens) {
-            if (screen.name == name)
+            if (screen.name == name) {
                 screen.layout.show()
-            else
+                currentScreen = screen
+            } else {
                 screen.layout.hide()
+            }
         }
     }
 
@@ -80,5 +83,4 @@ object ScreenSelector {
                         "Got error on subscribe: $throwable"
                     )
                 })
-
 }
