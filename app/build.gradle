@@ -10,9 +10,9 @@ android {
     defaultConfig {
         applicationId "org.avmedia.remotevideocam"
         minSdkVersion 24
-        targetSdkVersion 32
-        versionCode 27
-        versionName "2.7"
+        targetSdkVersion 33
+        versionCode 28
+        versionName "2.8"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
