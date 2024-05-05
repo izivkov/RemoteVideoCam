@@ -1,0 +1,14 @@
+<resources>
+     <string name="app_name">RemoteVideoCam</string>
+     <string name="display">Дисплей</string>
+     <string name="camera">Камера</string>
+     <string name="camera_screen">Экран камеры</string>
+     <string name="display_screen">Экран дисплея</string>
+     <string name="activity_name">Удалённая видеокамера</string>
+     <string name="camera_and_location_rationale">Для запуска этого приложения необходимы некоторые разрешения. Сейчас вам будет предложено предоставить их.</string>
+     <string name="returned_from_app_settings_to_activity">Возврат из настроек</string>
+     <string name="connecting_to_display">Подключение к дисплею...</string>
+     <string name="connecting_to_camera">Подключение к камере...</string>
+     <string name="connecting">Подключение...</string>
+     <string name="waiting_got_other_device_to_connect">Ожидание подключения другого\nустройства...</string>
+</resources>
