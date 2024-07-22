@@ -11,16 +11,17 @@ package org.avmedia.remotevideocam.display.customcomponents
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
 import android.util.AttributeSet
-import android.util.Log
 import android.widget.ImageView
+import androidx.constraintlayout.widget.ConstraintSet.Motion
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.display.ILocalConnection
 import org.avmedia.remotevideocam.display.NetworkServiceConnection
 import org.avmedia.remotevideocam.display.CameraStatusEventBus
-import org.avmedia.remotevideocam.frameanalysis.motion.VideoFrameInterceptor
+import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetector
 import org.json.JSONException
 import org.json.JSONObject
 import org.webrtc.*
@@ -29,14 +30,19 @@ import timber.log.Timber
 
 class VideoViewWebRTC @JvmOverloads constructor(
         context: Context, attrs: AttributeSet? = null
-) : org.webrtc.SurfaceViewRenderer(context, attrs), SdpObserver, PeerConnection.Observer {
+) : org.webrtc.SurfaceViewRenderer(context, attrs),
+    SdpObserver,
+    PeerConnection.Observer,
+    MotionDetector.Listener {
 
     private var peerConnection: PeerConnection? = null
     private var rootEglBase: EglBase? = null
     private var factory: PeerConnectionFactory? = null
     private val connection: ILocalConnection = NetworkServiceConnection
     private var mirrorState = false
-    private val videoFrameInterceptor = VideoFrameInterceptor()
+    private val motionDetector = MotionDetector().apply {
+        setListener(this@VideoViewWebRTC)
+    }
     private var motionDetectorView: ImageView? = null
 
     companion object {
@@ -215,8 +221,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
 
     override fun onFrame(frame: VideoFrame) {
         super.onFrame(frame)
-        videoFrameInterceptor.onFrame(frame, motionDetectorView)
-//        videoFrameInterceptor.onFrame(frame)
+        motionDetector.onFrame(frame)
     }
 
     private fun doAnswer() {
@@ -284,6 +289,13 @@ class VideoViewWebRTC @JvmOverloads constructor(
                     Timber.i("got bye")
                 }
             }
+        }
+    }
+
+    override fun onDetectionResult(detected: Boolean, bitmap: Bitmap?) {
+        Timber.i("Motion detection $detected")
+        bitmap?.let {
+            motionDetectorView?.setImageBitmap(it)
         }
     }
 }
