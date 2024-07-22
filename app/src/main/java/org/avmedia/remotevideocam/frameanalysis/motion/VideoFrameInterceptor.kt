@@ -1,7 +1,11 @@
 package org.avmedia.remotevideocam.frameanalysis.motion
 
 import android.graphics.Bitmap
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
+import android.widget.ImageView
 import org.opencv.android.OpenCVLoader
 import org.opencv.android.Utils
 import org.opencv.core.CvType
@@ -9,9 +13,12 @@ import org.opencv.core.Mat
 import org.opencv.imgproc.Imgproc
 import org.opencv.video.Video
 import org.webrtc.VideoFrame
-import org.webrtc.VideoSink
 
-class VideoFrameInterceptor : VideoSink {
+private const val DEBUG_UPDATE_INTERVAL = 300L
+
+class VideoFrameInterceptor(
+    private val mainHandler: Handler = Handler(Looper.getMainLooper()),
+) {
 
     init {
         check(OpenCVLoader.initDebug()) {
@@ -25,16 +32,17 @@ class VideoFrameInterceptor : VideoSink {
 
     private var debugBitmap: Bitmap? = null
 
-    override fun onFrame(videoFrame: VideoFrame) {
-        Log.d("lweijing", "width ${videoFrame.rotatedWidth}, height ${videoFrame.rotatedHeight}")
-        val greyBuffer = videoFrame.buffer.toI420().dataY
+    private var currentTimeMs: Long = SystemClock.elapsedRealtime()
+
+    fun onFrame(videoFrame: VideoFrame, motionDetectorView: ImageView? = null) {
+        val i420Buffer = videoFrame.buffer.toI420()
 
         // Use buffer's width and height over video frame's rotated specs.
         val imageMat = Mat(
             videoFrame.buffer.height,
             videoFrame.buffer.width,
             CvType.CV_8UC1,
-            greyBuffer,
+            i420Buffer.dataY,
         )
 
         val foregroundMat = Mat()
@@ -48,16 +56,22 @@ class VideoFrameInterceptor : VideoSink {
             Imgproc.THRESH_BINARY,
         )
 
-        debug(foregroundMat)
+
+
+        debug(foregroundMat, motionDetectorView)
 
         foregroundMat.release()
         imageMat.release()
+        i420Buffer.release()
     }
 
 
-    var count = 0;
-    private fun debug(foreground: Mat) {
-        if (++count % 30 == 0) {
+    private fun debug(foreground: Mat, motionDetectorView: ImageView?) {
+        val timeMs = SystemClock.elapsedRealtime()
+
+        if (timeMs - currentTimeMs > DEBUG_UPDATE_INTERVAL) {
+            currentTimeMs = timeMs
+
             val bitmap = this.debugBitmap?.takeIf {
                 foreground.width() == it.width && foreground.height() == it.height
             } ?: Bitmap.createBitmap(
@@ -69,7 +83,9 @@ class VideoFrameInterceptor : VideoSink {
             }
 
             Utils.matToBitmap(foreground, bitmap)
-            Log.d("lweijing", "$bitmap")
+            mainHandler.post {
+                motionDetectorView?.setImageBitmap(bitmap)
+            }
         }
     }
 }

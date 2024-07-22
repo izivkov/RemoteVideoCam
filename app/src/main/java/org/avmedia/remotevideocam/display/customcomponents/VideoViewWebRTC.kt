@@ -13,6 +13,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
 import android.util.Log
+import android.widget.ImageView
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.utils.ProgressEvents
@@ -36,6 +37,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
     private val connection: ILocalConnection = NetworkServiceConnection
     private var mirrorState = false
     private val videoFrameInterceptor = VideoFrameInterceptor()
+    private var motionDetectorView: ImageView? = null
 
     companion object {
         private const val TAG = "VideoViewWebRTC"
@@ -50,7 +52,8 @@ class VideoViewWebRTC @JvmOverloads constructor(
     }
 
     @SuppressLint("CheckResult")
-    fun init() {
+    fun init(motionDetectorView: ImageView) {
+        this.motionDetectorView = motionDetectorView
         CameraStatusEventBus.addSubject("WEB_RTC_EVENT")
         CameraStatusEventBus.subscribe(this.javaClass.simpleName, "WEB_RTC_EVENT", onNext = {
             SignalingHandler().handleWebRtcEvent(JSONObject(it as String))
@@ -212,8 +215,8 @@ class VideoViewWebRTC @JvmOverloads constructor(
 
     override fun onFrame(frame: VideoFrame) {
         super.onFrame(frame)
-        videoFrameInterceptor.onFrame(frame)
-        Log.d(TAG, "${frame.buffer}")
+        videoFrameInterceptor.onFrame(frame, motionDetectorView)
+//        videoFrameInterceptor.onFrame(frame)
     }
 
     private fun doAnswer() {
