@@ -2,7 +2,7 @@
 
 Remote Video Cam allows two android devices to stream video/audio to each other on the same LAN. The app needs to run on both devices.
 
-**WARNING: Do not use this app as a baby monitor! It is not certified as such. The video might freeze, and you will not be able to see the latest image.**
+**WARNING: If you are using this app as a baby monitor, please be aware that the video might freeze. To ensure the video is still running, use another method, such as placing a constantly moving object in the frame, like a clock with a second hand.**
 
 When started, the app will automatically find the other device, and will start streaming video from its cam to it.
 The user can select to be either in "camera" or "display" mode on each device. Both phones can be in "display" mode as well,
