@@ -4,12 +4,14 @@ import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.util.Log
 import android.widget.ImageView
 import org.opencv.android.OpenCVLoader
 import org.opencv.android.Utils
 import org.opencv.core.CvType
 import org.opencv.core.Mat
+import org.opencv.core.MatOfPoint
+import org.opencv.core.Scalar
+import org.opencv.core.Size
 import org.opencv.imgproc.Imgproc
 import org.opencv.video.Video
 import org.webrtc.VideoFrame
@@ -51,14 +53,45 @@ class VideoFrameInterceptor(
         Imgproc.threshold(
             foregroundMat,
             foregroundMat,
-            40.toDouble(),
-            255.toDouble(),
+            40.0,
+            255.0,
             Imgproc.THRESH_BINARY,
         )
 
+        val kernel = Imgproc.getStructuringElement(
+            Imgproc.MORPH_ELLIPSE,
+            Size(5.0, 5.0),
+        )
+        Imgproc.erode(foregroundMat, foregroundMat, kernel)
+        Imgproc.dilate(foregroundMat, foregroundMat, kernel)
 
+        val colorMat = Mat()
+        Imgproc.cvtColor(foregroundMat, colorMat, Imgproc.COLOR_GRAY2RGBA)
 
-        debug(foregroundMat, motionDetectorView)
+        val contours = ArrayList<MatOfPoint>()
+        Imgproc.findContours(
+            foregroundMat,
+            contours,
+            Mat(),
+            Imgproc.RETR_EXTERNAL,
+            Imgproc.CHAIN_APPROX_SIMPLE,
+        )
+
+//        Imgproc.drawContours(foregroundMat, contours, -1, Scalar(1.0, 0.0, 0.0), 3)
+
+        contours.mapNotNull {
+            if (Imgproc.contourArea(it) > 1000) {
+                it
+            } else {
+                null
+            }
+        }.forEach {
+            val rect = Imgproc.boundingRect(it)
+            Imgproc.rectangle(colorMat, rect, Scalar(1.0, 0.0, 0.0), 4)
+        }
+
+//        debug(foregroundMat, motionDetectorView)
+        debug(colorMat, motionDetectorView)
 
         foregroundMat.release()
         imageMat.release()
