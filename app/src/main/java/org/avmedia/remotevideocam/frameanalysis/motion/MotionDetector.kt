@@ -11,6 +11,7 @@ import org.opencv.android.Utils
 import org.opencv.core.CvType
 import org.opencv.core.Mat
 import org.opencv.core.MatOfPoint
+import org.opencv.core.Point
 import org.opencv.core.Scalar
 import org.opencv.core.Size
 import org.opencv.imgproc.Imgproc
@@ -18,8 +19,8 @@ import org.opencv.video.Video
 import org.webrtc.VideoFrame
 
 private const val DEBUG_UPDATE_INTERVAL = 100L
-private const val CONTOUR_AREA_THRESHOLD = 100
-private const val GREY_SCALE_THRESHOLD = 180.0
+private const val CONTOUR_AREA_THRESHOLD = 0
+private const val GREY_SCALE_THRESHOLD = 40.0
 
 private const val TAG = "MotionDetectionInterceptor"
 
@@ -101,15 +102,16 @@ class MotionDetector(
             Imgproc.MORPH_ELLIPSE,
             Size(3.0, 3.0),
         )
-        Imgproc.erode(foregroundMat, foregroundMat, kernel)
-        Imgproc.dilate(foregroundMat, foregroundMat, kernel)
+        Imgproc.morphologyEx(foregroundMat, foregroundMat, Imgproc.MORPH_OPEN, kernel)
+//        Imgproc.erode(foregroundMat, foregroundMat, kernel, Point(-1.0, -1.0), 3)
+//        Imgproc.dilate(foregroundMat, foregroundMat, kernel, Point(-1.0, -1.0), 3)
 
         val contours = ArrayList<MatOfPoint>()
         Imgproc.findContours(
             foregroundMat,
             contours,
             Mat(),
-            Imgproc.RETR_TREE,
+            Imgproc.RETR_EXTERNAL,
             Imgproc.CHAIN_APPROX_SIMPLE,
         )
 
@@ -123,7 +125,8 @@ class MotionDetector(
             false
         }
 
-        val bitmap = showDebugView(foregroundMat, imageMat, contours)
+//        val bitmap = showDebugView(foregroundMat, imageMat, contours)
+        val bitmap = showDebugView(foregroundMat, foregroundMat, contours)
 
         notifyListener(result, bitmap)
 
@@ -156,10 +159,10 @@ class MotionDetector(
         Imgproc.cvtColor(image, colorMat, Imgproc.COLOR_GRAY2RGBA)
 
         Imgproc.drawContours(colorMat, contours, -1, Scalar(0.0, 255.0, 0.0), 4)
-//        contours.forEach {
-//            val rect = Imgproc.boundingRect(it)
-//            Imgproc.rectangle(colorMat, rect, Scalar(255.0, 0.0, 0.0), 4)
-//        }
+        contours.forEach {
+            val rect = Imgproc.boundingRect(it)
+            Imgproc.rectangle(colorMat, rect, Scalar(255.0, 0.0, 0.0), 4)
+        }
 
         val bitmap = this.debugBitmap?.takeIf {
             colorMat.width() == it.width && colorMat.height() == it.height
