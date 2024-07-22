@@ -12,12 +12,14 @@ package org.avmedia.remotevideocam.display.customcomponents
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
+import android.util.Log
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.display.ILocalConnection
 import org.avmedia.remotevideocam.display.NetworkServiceConnection
 import org.avmedia.remotevideocam.display.CameraStatusEventBus
+import org.avmedia.remotevideocam.frameanalysis.motion.VideoFrameInterceptor
 import org.json.JSONException
 import org.json.JSONObject
 import org.webrtc.*
@@ -33,6 +35,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
     private var factory: PeerConnectionFactory? = null
     private val connection: ILocalConnection = NetworkServiceConnection
     private var mirrorState = false
+    private val videoFrameInterceptor = VideoFrameInterceptor()
 
     companion object {
         private const val TAG = "VideoViewWebRTC"
@@ -205,6 +208,12 @@ class VideoViewWebRTC @JvmOverloads constructor(
             override fun onTrack(transceiver: RtpTransceiver) {}
         }
         return factory!!.createPeerConnection(rtcConfig, pcConstraints, pcObserver)
+    }
+
+    override fun onFrame(frame: VideoFrame) {
+        super.onFrame(frame)
+        videoFrameInterceptor.onFrame(frame)
+        Log.d(TAG, "${frame.buffer}")
     }
 
     private fun doAnswer() {
