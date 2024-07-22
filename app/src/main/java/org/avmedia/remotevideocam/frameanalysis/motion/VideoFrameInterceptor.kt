@@ -49,6 +49,9 @@ class VideoFrameInterceptor : VideoSink {
         )
 
         debug(foregroundMat)
+
+        foregroundMat.release()
+        imageMat.release()
     }
 
 
