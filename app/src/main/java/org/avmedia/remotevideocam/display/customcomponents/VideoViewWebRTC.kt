@@ -40,10 +40,6 @@ class VideoViewWebRTC @JvmOverloads constructor(
     private var factory: PeerConnectionFactory? = null
     private val connection: ILocalConnection = NetworkServiceConnection
     private var mirrorState = false
-    private val motionDetector = MotionDetector().apply {
-        setListener(this@VideoViewWebRTC)
-    }
-    private var motionDetectorView: ImageView? = null
 
     companion object {
         private const val TAG = "VideoViewWebRTC"
@@ -58,8 +54,7 @@ class VideoViewWebRTC @JvmOverloads constructor(
     }
 
     @SuppressLint("CheckResult")
-    fun init(motionDetectorView: ImageView) {
-        this.motionDetectorView = motionDetectorView
+    fun init() {
         CameraStatusEventBus.addSubject("WEB_RTC_EVENT")
         CameraStatusEventBus.subscribe(this.javaClass.simpleName, "WEB_RTC_EVENT", onNext = {
             SignalingHandler().handleWebRtcEvent(JSONObject(it as String))
@@ -219,11 +214,6 @@ class VideoViewWebRTC @JvmOverloads constructor(
         return factory!!.createPeerConnection(rtcConfig, pcConstraints, pcObserver)
     }
 
-    override fun onFrame(frame: VideoFrame) {
-        super.onFrame(frame)
-        motionDetector.onFrame(frame)
-    }
-
     private fun doAnswer() {
         peerConnection!!.createAnswer(object : SimpleSdpObserver() {
             override fun onCreateSuccess(sessionDescription: SessionDescription) {
@@ -295,7 +285,6 @@ class VideoViewWebRTC @JvmOverloads constructor(
     override fun onDetectionResult(detected: Boolean, bitmap: Bitmap?) {
         Timber.i("Motion detection $detected")
         bitmap?.let {
-            motionDetectorView?.setImageBitmap(it)
         }
     }
 }

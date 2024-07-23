@@ -13,12 +13,11 @@ object Display : Fragment() {
     fun init(
         context: Context?,
         videoView: VideoViewWebRTC,
-        motionDetectorView: ImageView
     ) {
         if (context != null) {
             connection.init(context)
         }
-        videoView.init(motionDetectorView)
+        videoView.init()
         CameraDataListener.init(connection)
     }
 

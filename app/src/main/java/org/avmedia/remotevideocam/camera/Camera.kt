@@ -3,6 +3,7 @@ package org.avmedia.remotevideocam.camera
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
+import android.widget.ImageView
 import org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.json.JSONException
@@ -18,7 +19,7 @@ object Camera {
 
     fun init(
         context: Context?,
-        view: WebRTCSurfaceView
+        view: WebRTCSurfaceView,
     ) {
         this.context = context
 

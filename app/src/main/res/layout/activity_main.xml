@@ -116,6 +116,14 @@
             android:layout_height="match_parent"
             android:gravity="center" />
 
+        <ImageView
+            android:id="@+id/motion_detector_debug_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentTop="true"
+            />
+
         <LinearLayout
             android:id="@+id/video_controls_camera"
             android:layout_width="wrap_content"
@@ -197,16 +205,6 @@
                 android:background="@drawable/button"
                 app:icon="@drawable/back_button" />
         </LinearLayout>
-
-        <ImageView
-            android:id="@+id/motion_detector_view"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentRight="true"
-            android:layout_alignParentTop="true"
-            />
-
-
 
         <LinearLayout
             android:id="@+id/video_controls"

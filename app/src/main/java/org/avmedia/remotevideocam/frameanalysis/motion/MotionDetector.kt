@@ -22,7 +22,7 @@ private const val GRAY_SCALE_THRESHOLD = 40.0
 private const val TAG = "MotionDetectionInterceptor"
 
 class MotionDetector(
-    private val mainHandler: Handler = Handler(Looper.getMainLooper()),
+    private val enableDebug: Boolean = false,
 ) {
 
     private val analysisThread: HandlerThread
@@ -112,7 +112,11 @@ class MotionDetector(
 
 
         val detected = Core.hasNonZero(foregroundMat)
-        val bitmap = showDebugView(foregroundMat, imageMat, videoFrame.rotation)
+        val bitmap = if (enableDebug) {
+            showDebugView(foregroundMat, imageMat, videoFrame.rotation)
+        } else {
+            null
+        }
         notifyListener(detected, bitmap)
 
         // Release frames.
@@ -123,9 +127,7 @@ class MotionDetector(
 
     private fun notifyListener(detected: Boolean, bitmap: Bitmap?) {
         listener?.let {
-            mainHandler.post {
-                it.onDetectionResult(detected, bitmap)
-            }
+            it.onDetectionResult(detected, bitmap)
         }
     }
 
