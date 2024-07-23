@@ -18,8 +18,7 @@ import org.opencv.imgproc.Imgproc
 import org.opencv.video.Video
 import org.webrtc.VideoFrame
 
-private const val DEBUG_UPDATE_INTERVAL = 100L
-private const val CONTOUR_AREA_THRESHOLD = 0
+private const val DEBUG_UPDATE_INTERVAL = 100L / 99
 private const val GREY_SCALE_THRESHOLD = 40.0
 
 private const val TAG = "MotionDetectionInterceptor"
@@ -85,10 +84,11 @@ class MotionDetector(
             i420Buffer.dataY,
         )
 
+        // Extract the foreground by comparing the diff between current and last frame.
         val foregroundMat = Mat()
         backgroundSubtractor.apply(imageMat, foregroundMat)
 
-        // Note that the object can't be detected if its color is close to the background color.
+        // Create a binary image with a grey scale threshold.
         Imgproc.threshold(
             foregroundMat,
             foregroundMat,
@@ -102,9 +102,17 @@ class MotionDetector(
             Imgproc.MORPH_ELLIPSE,
             Size(3.0, 3.0),
         )
+
+        /**
+         * Noise reduction choices
+         * 1. MORPH_OPEN to reduce random noises from the foreground.
+         * 2. MORPH_DILATE to enlarge the white region, reassembling parts back into a
+         * single object. Useful for objects with various backgrounds, like cars.
+         * 3. Optionally, MORPH_CLOSE to closing the small holes in the foreground objects. .
+         * See details https://docs.opencv.org/4.x/d9/d61/tutorial_py_morphological_ops.html
+         */
         Imgproc.morphologyEx(foregroundMat, foregroundMat, Imgproc.MORPH_OPEN, kernel)
-//        Imgproc.erode(foregroundMat, foregroundMat, kernel, Point(-1.0, -1.0), 3)
-//        Imgproc.dilate(foregroundMat, foregroundMat, kernel, Point(-1.0, -1.0), 3)
+        Imgproc.morphologyEx(foregroundMat, foregroundMat, Imgproc.MORPH_DILATE, kernel)
 
         val contours = ArrayList<MatOfPoint>()
         Imgproc.findContours(
@@ -115,18 +123,15 @@ class MotionDetector(
             Imgproc.CHAIN_APPROX_SIMPLE,
         )
 
-        val largeContours = contours.filter { Imgproc.contourArea(it) > CONTOUR_AREA_THRESHOLD }
-
-        val result = if (largeContours.isNotEmpty()) {
-            Log.d(TAG, "motion detected. Contour size ${largeContours.size}.")
+        val result = if (contours.isNotEmpty()) {
+            Log.d(TAG, "motion detected. Contour size ${contours.size}.")
             true
         } else {
             Log.d(TAG, "motion not detected")
             false
         }
 
-//        val bitmap = showDebugView(foregroundMat, imageMat, contours)
-        val bitmap = showDebugView(foregroundMat, foregroundMat, contours)
+        val bitmap = showDebugView(foregroundMat, imageMat, contours)
 
         notifyListener(result, bitmap)
 
