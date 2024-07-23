@@ -117,18 +117,12 @@ class MotionDetector(
         } else {
             null
         }
-        notifyListener(detected, bitmap)
+        listener?.onDetectionResult(detected, bitmap)
 
         // Release frames.
         foregroundMat.release()
         imageMat.release()
         i420Buffer.release()
-    }
-
-    private fun notifyListener(detected: Boolean, bitmap: Bitmap?) {
-        listener?.let {
-            it.onDetectionResult(detected, bitmap)
-        }
     }
 
     private fun showDebugView(

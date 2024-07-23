@@ -2,7 +2,6 @@ package org.avmedia.remotevideocam.display
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.widget.ImageView
 import androidx.fragment.app.Fragment
 import org.avmedia.remotevideocam.display.customcomponents.VideoViewWebRTC
 
@@ -12,7 +11,7 @@ object Display : Fragment() {
 
     fun init(
         context: Context?,
-        videoView: VideoViewWebRTC,
+        videoView: VideoViewWebRTC
     ) {
         if (context != null) {
             connection.init(context)

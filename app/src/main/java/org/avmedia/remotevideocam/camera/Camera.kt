@@ -20,6 +20,7 @@ object Camera {
     fun init(
         context: Context?,
         view: WebRTCSurfaceView,
+        motionDetectorDebugView: ImageView,
     ) {
         this.context = context
 
@@ -28,6 +29,8 @@ object Camera {
 
         videoServer.init(context)
         videoServer.setView(view)
+
+        view.enableMotionDetection(motionDetectorDebugView)
 
         handleDisplayEvents()
         handleDisplayCommands()

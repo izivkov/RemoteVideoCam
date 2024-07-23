@@ -11,17 +11,13 @@ package org.avmedia.remotevideocam.display.customcomponents
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Bitmap
 import android.util.AttributeSet
-import android.widget.ImageView
-import androidx.constraintlayout.widget.ConstraintSet.Motion
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.display.ILocalConnection
 import org.avmedia.remotevideocam.display.NetworkServiceConnection
 import org.avmedia.remotevideocam.display.CameraStatusEventBus
-import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetector
 import org.json.JSONException
 import org.json.JSONObject
 import org.webrtc.*
@@ -30,10 +26,7 @@ import timber.log.Timber
 
 class VideoViewWebRTC @JvmOverloads constructor(
         context: Context, attrs: AttributeSet? = null
-) : org.webrtc.SurfaceViewRenderer(context, attrs),
-    SdpObserver,
-    PeerConnection.Observer,
-    MotionDetector.Listener {
+) : org.webrtc.SurfaceViewRenderer(context, attrs), SdpObserver, PeerConnection.Observer {
 
     private var peerConnection: PeerConnection? = null
     private var rootEglBase: EglBase? = null
@@ -279,12 +272,6 @@ class VideoViewWebRTC @JvmOverloads constructor(
                     Timber.i("got bye")
                 }
             }
-        }
-    }
-
-    override fun onDetectionResult(detected: Boolean, bitmap: Bitmap?) {
-        Timber.i("Motion detection $detected")
-        bitmap?.let {
         }
     }
 }
