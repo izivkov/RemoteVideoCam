@@ -35,6 +35,7 @@ class MotionDetector2 : EglRenderer.FrameListener {
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, textureFrameBuffer.textureId)
         frameDrawer.drawFrame(frame, glDrawer, Matrix())
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
+//        GLES20.glFlush()
 
         val newTextureBuffer = TextureBufferImpl(
             textureFrameBuffer.width,
@@ -46,6 +47,7 @@ class MotionDetector2 : EglRenderer.FrameListener {
             yuvConverter,
             makeReleaseRunnable(textureFrameBuffer, textureFrame.toI420Handler),
         ).let {
+//            it
             TextureBufferImpl2(textureFrameBuffer, it)
         }
 //        return VideoFrame(newTextureBuffer, frame.rotation, frame.timestampNs)
@@ -53,22 +55,28 @@ class MotionDetector2 : EglRenderer.FrameListener {
     }
 
     class TextureBufferImpl2(
-        private val textureFrameBuffer: GlTextureFrameBuffer,
+        val textureFrameBuffer: GlTextureFrameBuffer,
         private val delegate: TextureBufferImpl
     ) : TextureBuffer by delegate {
 
         override fun toI420(): VideoFrame.I420Buffer {
-            Log.d("lweijing", "toI420 framebuffer $textureFrameBuffer, ${textureFrameBuffer.frameBufferId}")
-            return delegate.toI420()
+            Log.d("lweijing", "toI420 $this")
+//            Log.d("lweijing", "toI420 framebuffer $textureFrameBuffer, ${textureFrameBuffer.frameBufferId}")
+            return delegate.toI420().let {
+                Log.d("lweijing", "toI420 $this done")
+                it
+            }
         }
 
         override fun retain() {
-            Log.d("lweijing", "retain framebuffer $textureFrameBuffer, ${textureFrameBuffer.frameBufferId}")
+            Log.d("lweijing", "retain $this")
+//            Log.d("lweijing", "retain framebuffer $textureFrameBuffer, ${textureFrameBuffer.frameBufferId}")
             delegate.retain()
         }
 
         override fun release() {
-            Log.d("lweijing", "release framebuffer $textureFrameBuffer, ${textureFrameBuffer.frameBufferId}")
+            Log.d("lweijing", "release $this")
+//            Log.d("lweijing", "release framebuffer $textureFrameBuffer, ${textureFrameBuffer.frameBufferId}")
             delegate.release()
         }
     }
@@ -85,6 +93,7 @@ class MotionDetector2 : EglRenderer.FrameListener {
         ): Runnable {
             return Runnable {
                 Log.d("lweijing", "delete framebuffer $textureFrameBuffer, ${textureFrameBuffer.frameBufferId}")
+                Log.d("lweijing", "new line")
                 if (handler.getLooper().getThread() == Thread.currentThread()) {
                     textureFrameBuffer.release()
                 } else {
