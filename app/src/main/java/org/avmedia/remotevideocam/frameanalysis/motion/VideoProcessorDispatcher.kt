@@ -16,8 +16,11 @@ class VideoProcessorDispatcher : VideoProcessor {
     }
 
     override fun onFrameCaptured(videoFrame: VideoFrame) {
+//        val modifiedFrame = videoFrame
         val modifiedFrame = motionDetector.process(videoFrame)
+//        modifiedFrame.retain()
         defaultVideoSink?.onFrame(modifiedFrame)
+        modifiedFrame.release()
     }
 
     override fun setSink(videoSink: VideoSink?) {
