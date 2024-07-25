@@ -30,8 +30,6 @@ object Camera {
         videoServer.init(context)
         videoServer.setView(view)
 
-        view.enableMotionDetection(motionDetectorDebugView)
-
         handleDisplayEvents()
         handleDisplayCommands()
     }

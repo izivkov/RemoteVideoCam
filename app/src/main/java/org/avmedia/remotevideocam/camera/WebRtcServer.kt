@@ -17,6 +17,8 @@ import io.reactivex.functions.Predicate
 import org.avmedia.remotevideocam.camera.CameraToDisplayEventBus.emitEvent
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.subscribe
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.unsubscribe
+import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetector2
+import org.avmedia.remotevideocam.frameanalysis.motion.VideoProcessorDispatcher
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.utils.AndGate
 import org.avmedia.remotevideocam.utils.ConnectionUtils
@@ -67,6 +69,8 @@ class WebRtcServer : IVideoServer {
     private val signalingHandler = SignalingHandler()
 
     private var videoCapturer: VideoCapturer? = null
+    private val videoProcessorDispatcher = VideoProcessorDispatcher()
+    private val motionDetector = MotionDetector2.DEFAULT
 
     // IVideoServer Interface
     override fun init(context: Context?) {
@@ -123,6 +127,7 @@ class WebRtcServer : IVideoServer {
     // local methods
     private fun startServer() {
         initializeSurfaceViews()
+        view?.addFrameListener(motionDetector, 0f)
         initializePeerConnectionFactory()
         createVideoTrackFromCameraAndShowIt()
         initializePeerConnections()
@@ -295,6 +300,7 @@ class WebRtcServer : IVideoServer {
         videoCapturer = createVideoCapturer()
         val videoSource =
             factory!!.createVideoSource(videoCapturer!!.isScreencast)
+        videoSource.setVideoProcessor(videoProcessorDispatcher)
         surfaceTextureHelper =
             SurfaceTextureHelper.create("CaptureThread", rootEglBase!!.eglBaseContext)
         videoCapturer!!.initialize(
