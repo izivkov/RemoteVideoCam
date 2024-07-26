@@ -8,17 +8,20 @@ import android.util.Log
 import org.webrtc.EglRenderer
 import org.webrtc.GlRectDrawer
 import org.webrtc.GlTextureFrameBuffer
+import org.webrtc.GlUtil
 import org.webrtc.TextureBufferImpl
+import org.webrtc.ThreadUtils
 import org.webrtc.VideoFrame
 import org.webrtc.VideoFrame.TextureBuffer
 import org.webrtc.VideoFrameDrawer
 import org.webrtc.YuvConverter
 
+private const val TAG = "MotionDetector2"
 class MotionDetector2 : EglRenderer.FrameListener {
 
 //    private var fenceSyncObject = AtomicReference<Long?>()
 //    private val textureFrameBuffer = GlTextureFrameBuffer(GLES20.GL_RGBA)
-    private val yuvConverter = YuvConverter()
+    private val yuvConverter = MyYuvConverter()
     private val frameDrawer = VideoFrameDrawer()
     private val glDrawer = GlRectDrawer()
 
@@ -30,12 +33,15 @@ class MotionDetector2 : EglRenderer.FrameListener {
         val textureFrameBuffer = GlTextureFrameBuffer(GLES20.GL_RGBA).apply {
             setSize(frame.rotatedWidth, frame.rotatedHeight)
         }
-        Log.d("lweijing", "new framebuffer $textureFrameBuffer, ${textureFrameBuffer.frameBufferId}")
+        Log.d("lweijing", "new framebuffer $textureFrameBuffer, ${textureFrameBuffer.frameBufferId}, tex ${textureFrameBuffer.textureId}")
 
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, textureFrameBuffer.textureId)
+        GlUtil.checkNoGLES2Error("$TAG glBindFrameBuffer")
         frameDrawer.drawFrame(frame, glDrawer, Matrix())
+        GlUtil.checkNoGLES2Error("$TAG frameDrawer")
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
-//        GLES20.glFlush()
+//        GlUtil.checkNoGLES2Error("$TAG glBindFrameBuffer")
+        GLES20.glFlush()
 
         val newTextureBuffer = TextureBufferImpl(
             textureFrameBuffer.width,
@@ -84,6 +90,17 @@ class MotionDetector2 : EglRenderer.FrameListener {
     override fun onFrame(bitmap: Bitmap?) {
     }
 
+    class MyYuvConverter : YuvConverter() {
+
+        override fun convert(inputTextureBuffer: TextureBuffer?): VideoFrame.I420Buffer {
+            try {
+                return super.convert(inputTextureBuffer)
+            } catch (e: RuntimeException) {
+                throw e
+            }
+        }
+    }
+
     companion object {
         val DEFAULT = MotionDetector2()
 
@@ -92,13 +109,15 @@ class MotionDetector2 : EglRenderer.FrameListener {
             handler: Handler,
         ): Runnable {
             return Runnable {
-                Log.d("lweijing", "delete framebuffer $textureFrameBuffer, ${textureFrameBuffer.frameBufferId}")
-                Log.d("lweijing", "new line")
                 if (handler.getLooper().getThread() == Thread.currentThread()) {
                     textureFrameBuffer.release()
+                    Log.d("lweijing", "delete framebuffer $textureFrameBuffer, ${textureFrameBuffer.frameBufferId}")
+                    Log.d("lweijing", "new line")
                 } else {
                     handler.post {
                         textureFrameBuffer.release()
+                        Log.d("lweijing", "delete framebuffer $textureFrameBuffer, ${textureFrameBuffer.frameBufferId}")
+                        Log.d("lweijing", "new line")
                     }
                 }
             }
