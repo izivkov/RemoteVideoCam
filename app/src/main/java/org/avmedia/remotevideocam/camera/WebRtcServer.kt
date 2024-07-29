@@ -17,6 +17,7 @@ import io.reactivex.functions.Predicate
 import org.avmedia.remotevideocam.camera.CameraToDisplayEventBus.emitEvent
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.subscribe
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.unsubscribe
+import org.avmedia.remotevideocam.frameanalysis.motion.MotionProcessor
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.utils.AndGate
 import org.avmedia.remotevideocam.utils.ConnectionUtils
@@ -47,7 +48,7 @@ carried over WebSocket. However, we already have a communication channel between
 It is possible in the future to factor out signaling into a separate class and provide
 various signalling types, such as to separate signalling server.
  */
-class WebRtcServer : IVideoServer {
+class WebRtcServer : IVideoServer, MotionProcessor.Listener {
     private val TAG = "WebRtcPeer"
     private var view: SurfaceViewRenderer? = null
     private var resolution = Size(640, 360)
@@ -67,6 +68,7 @@ class WebRtcServer : IVideoServer {
     private val signalingHandler = SignalingHandler()
 
     private var videoCapturer: VideoCapturer? = null
+    private var motionProcessor: MotionProcessor? = null
 
     // IVideoServer Interface
     override fun init(context: Context?) {
@@ -162,6 +164,9 @@ class WebRtcServer : IVideoServer {
     }
 
     private fun stopServer() {
+        motionProcessor?.release()
+        motionProcessor = null
+
         mediaStream!!.removeTrack(videoTrackFromCamera)
         mediaStream!!.removeTrack(localAudioTrack)
         view!!.release()
@@ -295,6 +300,15 @@ class WebRtcServer : IVideoServer {
         videoCapturer = createVideoCapturer()
         val videoSource =
             factory!!.createVideoSource(videoCapturer!!.isScreencast)
+
+        val motionProcessor = MotionProcessor().also {
+            it.setMotionListener(this@WebRtcServer, true)
+            this.motionProcessor?.release()
+            this.motionProcessor = it
+        }
+        val videoProcessor = VideoProcessorImpl(motionProcessor)
+        videoSource.setVideoProcessor(videoProcessor)
+
         surfaceTextureHelper =
             SurfaceTextureHelper.create("CaptureThread", rootEglBase!!.eglBaseContext)
         videoCapturer!!.initialize(
@@ -469,5 +483,9 @@ class WebRtcServer : IVideoServer {
         const val VIDEO_RESOLUTION_WIDTH = 640
         const val VIDEO_RESOLUTION_HEIGHT = 360
         const val FPS = 30
+    }
+
+    override fun onDetectionResult(detected: Boolean) {
+        Log.d(TAG, "Motion detection $detected.")
     }
 }
