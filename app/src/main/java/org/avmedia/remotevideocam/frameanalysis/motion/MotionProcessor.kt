@@ -3,6 +3,7 @@ package org.avmedia.remotevideocam.frameanalysis.motion
 import android.graphics.Matrix
 import android.opengl.GLES20
 import android.os.Handler
+import androidx.tracing.trace
 import org.avmedia.remotevideocam.camera.VideoProcessorImpl
 import org.opencv.android.OpenCVLoader
 import org.opencv.core.MatOfPoint
@@ -24,6 +25,8 @@ private val matToTextureTransform = Matrix().apply {
     preScale(1f, -1f)
     preTranslate(-0.5f, -0.5f)
 }
+
+private const val TAG = "MotionProcessor"
 
 /**
  * Used to analyze video frames for motion detection.
@@ -47,21 +50,15 @@ class MotionProcessor : VideoProcessorImpl.FrameProcessor {
     private var renderMotion: Boolean = false
     private val enable get() = listener != null
 
-    init {
-        check(OpenCVLoader.initLocal()) {
-            "Fail to init OpenCV"
-        }
-    }
-
-    override fun process(frame: VideoFrame): VideoFrame {
+    override fun process(frame: VideoFrame): VideoFrame = trace("$TAG.process") {
         /**
          * Return the original frame if not enabled.
          */
         if (!enable) {
-            return frame
+            return@trace frame
         }
 
-        return processInternal(frame)
+        return@trace processInternal(frame)
     }
 
     private fun processInternal(frame: VideoFrame): VideoFrame {
@@ -97,7 +94,7 @@ class MotionProcessor : VideoProcessorImpl.FrameProcessor {
     private fun modifyTextureBuffer(
         textureFrame: TextureBufferImpl,
         contours: List<MatOfPoint>,
-    ): TextureBufferImpl {
+    ): TextureBufferImpl = trace("$TAG.modifyTextureBuffer") {
         val handler: Handler = textureFrame.toI420Handler
         val texId = this.texId ?: GlUtil.generateTexture(GLES20.GL_TEXTURE_2D).also {
             texId = it
@@ -111,7 +108,7 @@ class MotionProcessor : VideoProcessorImpl.FrameProcessor {
         val frameBuffer = GlTextureFrameBuffer(GLES20.GL_RGBA)
         renderToTexture(frameBuffer, textureFrame, texId)
 
-        return TextureBufferImpl(
+        return@trace TextureBufferImpl(
             width,
             height,
             TextureBuffer.Type.RGB,
@@ -127,7 +124,7 @@ class MotionProcessor : VideoProcessorImpl.FrameProcessor {
         frameBuffer: GlTextureFrameBuffer,
         cameraTextureBuffer: TextureBuffer,
         texId: Int
-    ) {
+    ) = trace("$TAG.renderToTexture") {
         frameBuffer.setSize(cameraTextureBuffer.width, cameraTextureBuffer.height)
 
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, frameBuffer.frameBufferId)

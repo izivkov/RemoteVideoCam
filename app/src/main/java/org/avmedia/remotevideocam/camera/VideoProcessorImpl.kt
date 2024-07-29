@@ -1,8 +1,11 @@
 package org.avmedia.remotevideocam.camera
 
+import androidx.tracing.trace
 import org.webrtc.VideoFrame
 import org.webrtc.VideoProcessor
 import org.webrtc.VideoSink
+
+private const val TAG = "VideoProcessorImpl"
 
 /**
  * A default implementation of VideoProcessor. It is responsible to release the new video frame
@@ -23,7 +26,7 @@ class VideoProcessorImpl(private val frameProcessor: FrameProcessor) : VideoProc
     override fun onCapturerStopped() {
     }
 
-    override fun onFrameCaptured(videoFrame: VideoFrame) {
+    override fun onFrameCaptured(videoFrame: VideoFrame) = trace("$TAG.onFrameCaptured") {
         val frame = frameProcessor.process(videoFrame)
         defaultVideoSink?.onFrame(frame)
 
