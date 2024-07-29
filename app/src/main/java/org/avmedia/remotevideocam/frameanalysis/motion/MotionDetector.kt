@@ -6,6 +6,7 @@ import org.opencv.android.OpenCVLoader
 import org.opencv.core.CvType
 import org.opencv.core.Mat
 import org.opencv.core.MatOfPoint
+import org.opencv.core.Rect
 import org.opencv.core.Scalar
 import org.opencv.core.Size
 import org.opencv.imgproc.Imgproc
@@ -16,6 +17,7 @@ import java.nio.ByteBuffer
 private const val GRAY_SCALE_THRESHOLD = 20.0
 private const val MIN_AREA_THRESHOLD = 5
 private val SCALAR_GREEN = Scalar(0.0, 255.0, 0.0, 255.0)
+private val SCALAR_TRANSPARENT = Scalar(0.0, 0.0, 0.0, 0.0)
 
 private const val TAG = "MotionDetector"
 
@@ -28,6 +30,8 @@ class MotionDetector {
     private val backgroundSubtractor by lazy {
         Video.createBackgroundSubtractorMOG2()
     }
+
+    private var byteBufferToTexture: ByteBuffer? = null
 
     init {
         check(OpenCVLoader.initLocal()) {
@@ -58,15 +62,16 @@ class MotionDetector {
         height: Int,
         contours: List<MatOfPoint>,
         texId: Int
-    ) {
+    ) = trace("$TAG.uploadToTexture") {
         val filtered = contours.filter { it.width() * it.height() > MIN_AREA_THRESHOLD }
 
-        // TODO: reuse bytebuffer for better perf.
-        val byteBuffer = ByteBuffer.allocateDirect(
-            width * height * 4
-        )
+        val byteBuffer = getByteBufferForRgbaTexture(width, height)
         val mat = Mat(height, width, CvType.CV_8UC4, byteBuffer)
 
+        // Clear the mat with transparent black.
+        Imgproc.rectangle(mat, Rect(0, 0, width, height), SCALAR_TRANSPARENT, -1)
+
+        // Draw contours with green outlines.
         Imgproc.drawContours(mat, filtered, -1, SCALAR_GREEN)
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
@@ -85,6 +90,16 @@ class MotionDetector {
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
 
         mat.release()
+    }
+
+    private fun getByteBufferForRgbaTexture(width: Int, height: Int): ByteBuffer {
+        val capacity = width * height * 4
+        val byteBuffer = this.byteBufferToTexture?.takeIf {
+            it.capacity() == capacity
+        } ?: ByteBuffer.allocateDirect(capacity).also {
+            byteBufferToTexture = it
+        }
+        return byteBuffer
     }
 
     private fun executeImageProcessing(image: Mat, foregroundMat: Mat) =
