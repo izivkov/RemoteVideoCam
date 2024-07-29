@@ -3,6 +3,7 @@ package org.avmedia.remotevideocam.camera
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
+import android.widget.ImageButton
 import org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.json.JSONException
@@ -18,7 +19,8 @@ object Camera {
 
     fun init(
         context: Context?,
-        view: WebRTCSurfaceView
+        view: WebRTCSurfaceView,
+        motionDetectionButton: ImageButton
     ) {
         this.context = context
 
@@ -28,8 +30,18 @@ object Camera {
         videoServer.init(context)
         videoServer.setView(view)
 
+        initMotionDetection(motionDetectionButton)
+
         handleDisplayEvents()
         handleDisplayCommands()
+    }
+
+    private fun initMotionDetection(motionDetectionButton: ImageButton) {
+        motionDetectionButton.setOnClickListener {
+            val enabled = !motionDetectionButton.isSelected
+            motionDetectionButton.isSelected = enabled
+            videoServer.setMotionDetection(enabled)
+        }
     }
 
     internal class DataReceived : IDataReceived {

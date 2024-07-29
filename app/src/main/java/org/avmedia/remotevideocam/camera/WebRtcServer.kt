@@ -121,6 +121,14 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
         andGate?.set("resolution set", true)
     }
 
+    override fun setMotionDetection(enabled: Boolean) {
+        if (enabled) {
+            motionProcessor?.setMotionListener(this, true)
+        } else {
+            motionProcessor?.setMotionListener(null, false)
+        }
+    }
+
     // end Interface
     // local methods
     private fun startServer() {
@@ -302,7 +310,6 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
             factory!!.createVideoSource(videoCapturer!!.isScreencast)
 
         val motionProcessor = MotionProcessor().also {
-            it.setMotionListener(this@WebRtcServer, true)
             this.motionProcessor?.release()
             this.motionProcessor = it
         }
