@@ -5,7 +5,6 @@ import android.opengl.GLES20
 import android.os.Handler
 import androidx.tracing.trace
 import org.avmedia.remotevideocam.camera.VideoProcessorImpl
-import org.opencv.android.OpenCVLoader
 import org.opencv.core.MatOfPoint
 import org.webrtc.GlRectDrawer
 import org.webrtc.GlTextureFrameBuffer
@@ -44,7 +43,9 @@ class MotionProcessor : VideoProcessorImpl.FrameProcessor {
 
     private val yuvConverter = YuvConverter()
     private val glDrawer = GlRectDrawer()
-    private val motionDetector = MotionDetector()
+    private val motionDetector by lazy {
+        MotionDetector()
+    }
 
     private var texId: Int? = null
     private var listener: Listener? = null
@@ -65,10 +66,11 @@ class MotionProcessor : VideoProcessorImpl.FrameProcessor {
     private fun processInternal(frame: VideoFrame): VideoFrame {
         val textureBuffer = frame.buffer as TextureBufferImpl
         val contours = motionDetector.analyzeMotion(textureBuffer)
+        val motionDetected = contours.isNotEmpty()
 
-        notifyListener(contours)
+        notifyListener(motionDetected)
 
-        val resultBuffer = if (renderMotion) {
+        val resultBuffer = if (motionDetected && renderMotion) {
             val modifiedBuffer = modifyTextureBuffer(textureBuffer, contours)
             VideoFrame(modifiedBuffer, frame.rotation, frame.timestampNs)
         } else {
@@ -92,8 +94,7 @@ class MotionProcessor : VideoProcessorImpl.FrameProcessor {
         this.renderMotion = renderMotion
     }
 
-    private fun notifyListener(contours: List<MatOfPoint>) {
-        val motionDetected = contours.isNotEmpty()
+    private fun notifyListener(motionDetected: Boolean) {
         listener?.onDetectionResult(motionDetected)
     }
 
@@ -179,5 +180,6 @@ class MotionProcessor : VideoProcessorImpl.FrameProcessor {
         }
         glDrawer.release()
         yuvConverter.release()
+        motionDetector.release()
     }
 }
