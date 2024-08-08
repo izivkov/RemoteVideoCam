@@ -9,7 +9,7 @@
         />
 
     <item
-        android:color="@color/black"
+        android:color="@color/white"
         android:state_selected="false"
         />
 

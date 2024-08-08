@@ -17,7 +17,11 @@ import io.reactivex.functions.Predicate
 import org.avmedia.remotevideocam.camera.CameraToDisplayEventBus.emitEvent
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.subscribe
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.unsubscribe
+import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionAction
+import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionData
+import org.avmedia.remotevideocam.frameanalysis.motion.MotionNotificationController
 import org.avmedia.remotevideocam.frameanalysis.motion.MotionProcessor
+import org.avmedia.remotevideocam.frameanalysis.motion.toJsonResponse
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.utils.AndGate
 import org.avmedia.remotevideocam.utils.ConnectionUtils
@@ -69,6 +73,7 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
 
     private var videoCapturer: VideoCapturer? = null
     private var motionProcessor: MotionProcessor? = null
+    private var motionNotificationController: MotionNotificationController? = null
 
     // IVideoServer Interface
     override fun init(context: Context?) {
@@ -83,6 +88,7 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
 
         rootEglBase = EglBase.create()
         signalingHandler.handleControllerWebRtcEvents()
+        motionNotificationController = MotionNotificationController(context)
 
         createAppEventsSubscription(context)
     }
@@ -123,9 +129,9 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
 
     override fun setMotionDetection(enabled: Boolean) {
         if (enabled) {
-            motionProcessor?.setMotionListener(this, true)
+            motionProcessor?.setMotionListener(this)
         } else {
-            motionProcessor?.setMotionListener(null, false)
+            motionProcessor?.setMotionListener(null)
         }
     }
 
@@ -493,6 +499,11 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
     }
 
     override fun onDetectionResult(detected: Boolean) {
-        Log.d(TAG, "Motion detection $detected.")
+        val action = if (detected) {
+            MotionDetectionAction.DETECTED
+        } else {
+            MotionDetectionAction.NOT_DETECTED
+        }
+        emitEvent(MotionDetectionData(action).toJsonResponse())
     }
 }

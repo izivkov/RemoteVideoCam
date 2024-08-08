@@ -16,6 +16,7 @@ import org.webrtc.VideoFrame
 import org.webrtc.VideoFrame.TextureBuffer
 import org.webrtc.VideoFrameDrawer
 import org.webrtc.YuvConverter
+import timber.log.Timber
 
 /**
  * Transform Mat coordinates(top-left) to Texture coordinates(bottom-left) by flipping the y value.
@@ -82,6 +83,11 @@ class MotionProcessor : VideoProcessorImpl.FrameProcessor {
     }
 
     fun setMotionListener(listener: Listener?, renderMotion: Boolean = false) {
+        Timber.tag(TAG).i(
+            "setMotionListener, listener %s, renderMotion %s",
+            listener,
+            renderMotion
+        )
         this.listener = listener
         this.renderMotion = renderMotion
     }
