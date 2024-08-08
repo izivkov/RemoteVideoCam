@@ -38,6 +38,9 @@ android {
 
 dependencies {
 
+    implementation("org.opencv:opencv:4.9.0")
+    implementation("androidx.tracing:tracing-ktx:1.1.0")
+
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'androidx.core:core-ktx:1.9.0'
     implementation 'androidx.appcompat:appcompat:1.5.1'
@@ -46,8 +49,8 @@ dependencies {
     // material design
     implementation 'com.google.android.material:material:1.6.1'
 
-    // WebRTC
-    implementation 'org.webrtc:google-webrtc:1.0.+'
+    // WebRTC - use specific version
+    implementation 'org.webrtc:google-webrtc:1.0.32006'
 
     // RxJava
     implementation "io.reactivex.rxjava2:rxjava:2.2.8"

@@ -9,6 +9,9 @@
 
 package org.avmedia.remotevideocam.display
 
+import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionAction
+import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionData
+import org.avmedia.remotevideocam.utils.ConnectionUtils
 import org.json.JSONObject
 
 /*
@@ -21,8 +24,16 @@ object CameraDataListener {
             override fun dataReceived(command: String?) {
 
                 val dataJson = JSONObject(command as String)
-                val statusValues = dataJson.getJSONObject("status")
+                if (dataJson.has("status")) {
+                    processStatus(dataJson.getJSONObject("status"))
+                }
 
+                if (dataJson.has(MotionDetectionData.KEY)) {
+                    processMotionDetection(dataJson.getString(MotionDetectionData.KEY))
+                }
+            }
+
+            private fun processStatus(statusValues: JSONObject) {
                 for (key in statusValues.keys()) {
                     val value: String = statusValues.getString(key)
 
@@ -32,6 +43,10 @@ object CameraDataListener {
                     */
                     CameraStatusEventBus.emitEvent(key, value)
                 }
+            }
+
+            private fun processMotionDetection(dataJson: String) {
+                CameraStatusEventBus.emitEvent(MotionDetectionData.KEY, dataJson)
             }
         }
 

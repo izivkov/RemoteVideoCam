@@ -91,7 +91,7 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
 
         if (!Camera.isConnected()) {
             // Open display first, which waits on 'accept'
-            Display.init(this, binding.videoView)
+            Display.init(this, binding.videoView, binding.motionDetectionButton)
             Display.connect(this)
 
             Camera.init(this, binding.videoWindow)
@@ -140,13 +140,16 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
 
     @AfterPermissionGranted(RC_ALL_PERMISSIONS)
     private fun getPermission() {
-        val perms = arrayOf(
+        var perms = arrayOf(
             Manifest.permission.CAMERA,
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.INTERNET,
             Manifest.permission.ACCESS_NETWORK_STATE
         )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            perms += Manifest.permission.POST_NOTIFICATIONS
+        }
         if (!EasyPermissions.hasPermissions(this, *perms)) {
             // Do not have permissions, request them now
             // EasyPermissions.requestPermissions()

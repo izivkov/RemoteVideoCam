@@ -17,6 +17,11 @@ import io.reactivex.functions.Predicate
 import org.avmedia.remotevideocam.camera.CameraToDisplayEventBus.emitEvent
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.subscribe
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.unsubscribe
+import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionAction
+import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionData
+import org.avmedia.remotevideocam.frameanalysis.motion.MotionNotificationController
+import org.avmedia.remotevideocam.frameanalysis.motion.MotionProcessor
+import org.avmedia.remotevideocam.frameanalysis.motion.toJsonResponse
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.utils.AndGate
 import org.avmedia.remotevideocam.utils.ConnectionUtils
@@ -47,7 +52,7 @@ carried over WebSocket. However, we already have a communication channel between
 It is possible in the future to factor out signaling into a separate class and provide
 various signalling types, such as to separate signalling server.
  */
-class WebRtcServer : IVideoServer {
+class WebRtcServer : IVideoServer, MotionProcessor.Listener {
     private val TAG = "WebRtcPeer"
     private var view: SurfaceViewRenderer? = null
     private var resolution = Size(640, 360)
@@ -67,6 +72,8 @@ class WebRtcServer : IVideoServer {
     private val signalingHandler = SignalingHandler()
 
     private var videoCapturer: VideoCapturer? = null
+    private var motionProcessor: MotionProcessor? = null
+    private var motionNotificationController: MotionNotificationController? = null
 
     // IVideoServer Interface
     override fun init(context: Context?) {
@@ -81,6 +88,7 @@ class WebRtcServer : IVideoServer {
 
         rootEglBase = EglBase.create()
         signalingHandler.handleControllerWebRtcEvents()
+        motionNotificationController = MotionNotificationController(context)
 
         createAppEventsSubscription(context)
     }
@@ -117,6 +125,14 @@ class WebRtcServer : IVideoServer {
     override fun setResolution(w: Int, h: Int) {
         resolution = Size(w, h)
         andGate?.set("resolution set", true)
+    }
+
+    override fun setMotionDetection(enabled: Boolean) {
+        if (enabled) {
+            motionProcessor?.setMotionListener(this)
+        } else {
+            motionProcessor?.setMotionListener(null)
+        }
     }
 
     // end Interface
@@ -162,6 +178,9 @@ class WebRtcServer : IVideoServer {
     }
 
     private fun stopServer() {
+        motionProcessor?.release()
+        motionProcessor = null
+
         mediaStream!!.removeTrack(videoTrackFromCamera)
         mediaStream!!.removeTrack(localAudioTrack)
         view!!.release()
@@ -295,6 +314,14 @@ class WebRtcServer : IVideoServer {
         videoCapturer = createVideoCapturer()
         val videoSource =
             factory!!.createVideoSource(videoCapturer!!.isScreencast)
+
+        val motionProcessor = MotionProcessor().also {
+            this.motionProcessor?.release()
+            this.motionProcessor = it
+        }
+        val videoProcessor = VideoProcessorImpl(motionProcessor)
+        videoSource.setVideoProcessor(videoProcessor)
+
         surfaceTextureHelper =
             SurfaceTextureHelper.create("CaptureThread", rootEglBase!!.eglBaseContext)
         videoCapturer!!.initialize(
@@ -469,5 +496,14 @@ class WebRtcServer : IVideoServer {
         const val VIDEO_RESOLUTION_WIDTH = 640
         const val VIDEO_RESOLUTION_HEIGHT = 360
         const val FPS = 30
+    }
+
+    override fun onDetectionResult(detected: Boolean) {
+        val action = if (detected) {
+            MotionDetectionAction.DETECTED
+        } else {
+            MotionDetectionAction.NOT_DETECTED
+        }
+        emitEvent(MotionDetectionData(action).toJsonResponse())
     }
 }
