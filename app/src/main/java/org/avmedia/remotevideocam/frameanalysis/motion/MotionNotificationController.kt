@@ -66,26 +66,33 @@ class MotionNotificationController(private val context: Context) {
         }
     }
 
-    fun showNotification(title: String) {
+    fun showNotification() {
         if (skipOrRecordNotification()) {
             return
         }
 
         val simpleDataFormat = SimpleDateFormat(
-            "hh:mm:ss",
+            "HH:mm:ss",
             Locale.getDefault())
             .format(Date())
+
+        val titleString = context.getString(R.string.notify_title)
+        val timestampString = context.getString(
+            R.string.notify_content_text_timestamp,
+            simpleDataFormat
+        )
 
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            showToast(title.plus(" at $simpleDataFormat"))
+            showToast(titleString)
             return
         }
-        val notification = createNotificationBuilder(title)
-            .setContentText("At $simpleDataFormat")
+
+        val notification = createNotificationBuilder(titleString)
+            .setContentText(timestampString)
             .build()
-        val summary = createNotificationBuilder(title)
+        val summary = createNotificationBuilder(titleString)
             .setGroupSummary(true)
             .build()
 

@@ -11,4 +11,6 @@
     <string name="connecting_to_camera">Connecting to Camera...</string>
     <string name="connecting">Connecting...</string>
     <string name="waiting_got_other_device_to_connect">Waiting for other\ndevice to connect...</string>
+    <string name="notify_title">Motion Detected</string>
+    <string name="notify_content_text_timestamp">At %1$s</string>
 </resources>

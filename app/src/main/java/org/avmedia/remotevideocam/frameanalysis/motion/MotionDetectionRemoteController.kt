@@ -51,9 +51,7 @@ class MotionDetectionRemoteController(
     override fun onStateChanged(detected: Boolean) {
         Timber.tag(TAG).d("onStateChanged %s", detected)
         if (detected) {
-            notificationController?.showNotification(
-                "Motion Detected",
-            )
+            notificationController?.showNotification()
         }
     }
 }
