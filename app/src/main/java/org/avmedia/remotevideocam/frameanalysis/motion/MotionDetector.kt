@@ -17,7 +17,7 @@ import timber.log.Timber
 import java.nio.ByteBuffer
 
 private const val GRAY_SCALE_THRESHOLD = 20.0
-private const val MIN_AREA_THRESHOLD = 5
+private const val MIN_AREA_THRESHOLD = 0
 private val SCALAR_GREEN = Scalar(0.0, 255.0, 0.0, 255.0)
 private val SCALAR_TRANSPARENT = Scalar(0.0, 0.0, 0.0, 0.0)
 

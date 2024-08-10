@@ -33,7 +33,10 @@ class MotionDetectionRemoteController(
         } else {
             MotionDetectionAction.DISABLED
         }
-        connection.sendMessage(value.toJsonResponse().toString())
+        val data = value.toData()
+        connection.sendMessage(data.toJsonResponse().toString())
+        motionDetectionStateMachine.process(data)
+        notificationController?.resetCooldown()
     }
 
     fun subscribe() {

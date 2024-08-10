@@ -54,8 +54,8 @@ fun MotionDetectionData.toJsonResponse(): JSONObject {
     return JSONObject().put(MotionDetectionData.KEY, json)
 }
 
-fun MotionDetectionAction.toJsonResponse(): JSONObject {
-    return MotionDetectionData(this).toJsonResponse()
+fun MotionDetectionAction.toData(): MotionDetectionData {
+    return MotionDetectionData(this)
 }
 
 fun String.toMotionDetectionAction(): MotionDetectionAction {
