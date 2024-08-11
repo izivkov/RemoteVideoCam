@@ -239,6 +239,18 @@
             android:layout_margin="10dp"
             />
 
+        <ImageButton
+            android:id="@+id/motion_detection_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentRight="true"
+            android:background="@drawable/shaded"
+            app:tint="@color/selector_tint"
+            android:src="@drawable/ic_motion_detection"
+            android:padding="5dp"
+            />
+
     </org.avmedia.remotevideocam.display.customcomponents.DisplayLayout>
 
 </FrameLayout>
