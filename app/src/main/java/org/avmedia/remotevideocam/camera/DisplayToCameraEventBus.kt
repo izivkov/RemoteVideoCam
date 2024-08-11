@@ -18,11 +18,10 @@ object DisplayToCameraEventBus {
         event?.let { subject.onNext(it) }
     }
 
-    @RequiresApi(Build.VERSION_CODES.N)
     fun subscribe(
         subscriberName: String,
-        @NonNull onNext: Consumer<in JSONObject?>?,
-        @NonNull onError: Consumer<in Throwable?>?
+        onNext: Consumer<in JSONObject?>?,
+        onError: Consumer<in Throwable?>?
     ) {
         subscribe(
             subscriberName,
@@ -33,15 +32,15 @@ object DisplayToCameraEventBus {
 
     fun subscribe(
         subscriberName: String,
-        @NonNull onNext: Consumer<in JSONObject?>?,
-        @NonNull onError: Consumer<in Throwable?>?,
+        onNext: Consumer<in JSONObject?>?,
+        onError: Consumer<in Throwable?>?,
         filterPredicate: Predicate<in JSONObject?>?
     ) {
         if (subscribers.containsKey(subscriberName)) {
             // This name already subscribed, cannot subscribe multiple times;
             return
         }
-        @NonNull val subscriber: Disposable =
+        val subscriber: Disposable =
             subject.filter(filterPredicate).subscribe(onNext, onError)
         subscribers[subscriberName] = subscriber
     }
