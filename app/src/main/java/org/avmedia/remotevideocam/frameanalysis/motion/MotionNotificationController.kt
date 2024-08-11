@@ -72,7 +72,7 @@ class MotionNotificationController(private val context: Context) {
         }
 
         val simpleDataFormat = SimpleDateFormat(
-            "HH:mm:ss",
+            "hh:mm:ss a",
             Locale.getDefault())
             .format(Date())
 
