@@ -71,10 +71,9 @@ object Camera {
         CameraToDisplayEventBus.processor
             .subscribe(
                 { info -> send(info) }
-            ) { error -> Timber.d("Error occurred in CameraToDisplayEventBus: %s", error) }
+            ) { error -> Timber.d("Error occurred in CameraToDisplayEventBus: $error") }
     }
 
-    @SuppressLint("LogNotTimber")
     fun handleDisplayCommands() {
         DisplayToCameraEventBus.subscribe(
             this.javaClass.simpleName,
@@ -116,8 +115,7 @@ object Camera {
                 }
             },
             { error: Throwable? ->
-                Log.d(
-                    TAG,
+                Timber.d(
                     "Error occurred in handleControllerWebRtcEvents: $error"
                 )
             },
