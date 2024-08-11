@@ -13,4 +13,3 @@ class WebRTCSurfaceView @JvmOverloads constructor(
     private val ratioWidth = 0
     private val ratioHeight = 0
 }
-
