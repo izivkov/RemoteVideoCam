@@ -3,7 +3,8 @@ buildscript {
     ext.kotlin_version = '1.9.23'
     repositories {
         google()
-        jcenter()
+        mavenCentral()
+        // jcenter()
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.5.2'
@@ -17,7 +18,8 @@ buildscript {
 allprojects {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
+        // jcenter()
     }
 }
 
