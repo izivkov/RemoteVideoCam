@@ -41,6 +41,8 @@ class MainActivity : AppCompatActivity(), EasyPermissions.PermissionCallbacks,
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // System.loadLibrary("webrtc")
+
         try {
             binding = ActivityMainBinding.inflate(layoutInflater)
         } catch (e: Exception) {
