@@ -57,9 +57,8 @@ dependencies {
 
     // WebRTC
     // implementation 'org.webrtc:google-webrtc:1.0.32006'
-    // implementation "org.jitsi:webrtc:124.0.0"
-    implementation "im.conversations.webrtc:webrtc-android:119.0.1"
-
+    implementation 'com.aar.app:google-webrtc:M83'
+    // implementation "im.conversations.webrtc:webrtc-android:119.0.1"
 
     // RxJava
     implementation "io.reactivex.rxjava2:rxjava:2.2.8"

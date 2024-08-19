@@ -19,6 +19,9 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        maven {
+            url 'https://raw.github.com/abdularis/libwebrtc-android/repo/'
+        }
         // jcenter()
     }
 }
