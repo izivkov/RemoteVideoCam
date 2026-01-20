@@ -12,8 +12,9 @@ package org.avmedia.remotevideocam.display.customcomponents
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.disposables.Disposable
+import android.util.Log
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.disposables.Disposable
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.display.ILocalConnection
 import org.avmedia.remotevideocam.display.NetworkServiceConnection
@@ -147,9 +148,26 @@ class VideoViewWebRTC @JvmOverloads constructor(
 
 
     private fun initializePeerConnectionFactory() {
+        // New
+        try {
+            // Force load the native binary manually
+            System.loadLibrary("jingle_peerconnection_so")
+        } catch (e: UnsatisfiedLinkError) {
+            // If it fails here, the .so is definitely missing from the APK
+            Log.e("WebRtcServer", "Native library failed to load: ${e.message}")
+        }
+
+        // Now proceed with initialization
+        val options = PeerConnectionFactory.InitializationOptions.builder(context)
+            .setEnableInternalTracer(true)
+            .createInitializationOptions()
+        PeerConnectionFactory.initialize(options)
+        // End new
+
         val encoderFactory: VideoEncoderFactory = DefaultVideoEncoderFactory(rootEglBase!!.eglBaseContext, true, true)
         val decoderFactory: VideoDecoderFactory = DefaultVideoDecoderFactory(rootEglBase!!.eglBaseContext)
-        val initializationOptions = PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions()
+
+        val initializationOptions = PeerConnectionFactory.InitializationOptions.builder(context).setEnableInternalTracer(true).createInitializationOptions()
         PeerConnectionFactory.initialize(initializationOptions)
         factory = PeerConnectionFactory.builder().setVideoEncoderFactory(encoderFactory).setVideoDecoderFactory(decoderFactory).createPeerConnectionFactory()
     }

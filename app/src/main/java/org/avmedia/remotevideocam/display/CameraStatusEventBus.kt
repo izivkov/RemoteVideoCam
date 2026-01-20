@@ -1,27 +1,22 @@
-/*
- * Developed by:
- *
- * Ivo Zivkov
- * izivkov@gmail.com
- *
- * Date: 2020-12-27, 10:59 p.m.
- */
-
 package org.avmedia.remotevideocam.display
 
 import android.annotation.SuppressLint
-import io.reactivex.functions.Consumer
-import io.reactivex.subjects.PublishSubject
+import io.reactivex.rxjava3.functions.Consumer
+import io.reactivex.rxjava3.subjects.PublishSubject
 
 object CameraStatusEventBus {
-    private val subjects = HashMap<String, PublishSubject<String?>>()
+    // Note: The PublishSubject itself can handle a nullable type if needed,
+    // but the Consumer in the subscribe method cannot.
+    // For consistency, let's make the subject non-nullable too.
+    private val subjects = HashMap<String, PublishSubject<String>>()
     private val subscribers = HashMap<String, LinkedHashSet<String>> ()
 
     fun addSubject(name: String) {
         if (subjects[name] != null) {
             return
         }
-        val subject: PublishSubject<String?> = PublishSubject.create()
+        // Create a subject that emits non-nullable Strings
+        val subject: PublishSubject<String> = PublishSubject.create()
         subjects[name] = subject
     }
 
@@ -32,26 +27,16 @@ object CameraStatusEventBus {
         }
 
         val subjectsForThisSubscriber =  subscribers[subscriber]
-        if (!subjectsForThisSubscriber?.contains(subject)!!) {
-            subjectsForThisSubscriber?.add(subject)
-        }
+        subjectsForThisSubscriber?.add(subject)
     }
 
     private fun subscriberAlreadySubscribed(subscriber: String, subject: String): Boolean {
-        if (!subscribers.containsKey(subscriber)) {
-            return false
-        }
-
         val subjectsForThisSubscriber = subscribers[subscriber]
-        if (subjectsForThisSubscriber == null || !subjectsForThisSubscriber.contains(subject)) {
-            return false
-        }
-
-        return true
+        return subjectsForThisSubscriber?.contains(subject) ?: false
     }
 
     @SuppressLint("CheckResult")
-    fun subscribe(subscriberName: String, subject: String, onNext: Consumer<in String?>) {
+    fun subscribe(subscriberName: String, subject: String, onNext: Consumer<in String>) { // CORRECTED
         if (!subscriberAlreadySubscribed(subscriberName, subject)) {
             getProcessor(subject)?.subscribe(onNext)
             addSubscriberAndSubject(subscriberName, subject)
@@ -59,14 +44,14 @@ object CameraStatusEventBus {
     }
 
     @SuppressLint("CheckResult")
-    fun subscribe(subscriberName: String, subject: String, onNext: Consumer<in String?>, onError: Consumer<in Throwable>) {
+    fun subscribe(subscriberName: String, subject: String, onNext: Consumer<in String>, onError: Consumer<in Throwable>) { // CORRECTED
         if (!subscriberAlreadySubscribed(subscriberName, subject)) {
             getProcessor(subject)?.subscribe(onNext, onError)
             addSubscriberAndSubject(subscriberName, subject)
         }
     }
 
-    private fun getProcessor(name: String): PublishSubject<String?>? {
+    private fun getProcessor(name: String): PublishSubject<String>? { // Return type is now PublishSubject<String>
         return subjects[name]
     }
 

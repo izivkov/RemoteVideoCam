@@ -25,9 +25,9 @@ class FrameDiffSubtractor : BackgroundSubtractor {
     private val foreground = Mat()
 
     override fun apply(buffer: VideoFrame.Buffer): Mat? = trace("$TAG.apply") {
-        val frame = trace("toI420") {
-            Frame(buffer.toI420())
-        }
+        // Convert to I420 and handle the null case
+        val i420Buffer = buffer.toI420() ?: return@trace null
+        val frame = Frame(i420Buffer)
 
         if (lastFrame == null ||
             lastFrame?.width != frame.width ||

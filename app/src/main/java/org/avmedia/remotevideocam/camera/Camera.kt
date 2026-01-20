@@ -70,8 +70,11 @@ object Camera {
     private fun handleDisplayEvents() {
         CameraToDisplayEventBus.processor
             .subscribe(
-                { info -> send(info) }
-            ) { error -> Timber.d("Error occurred in CameraToDisplayEventBus: $error") }
+                // 1st parameter: the onNext lambda
+                { info: JSONObject -> send(info) },
+                // 2nd parameter: the onError lambda
+                { error: Throwable -> Timber.d("Error occurred in CameraToDisplayEventBus: $error") }
+            )
     }
 
     fun handleDisplayCommands() {

@@ -1,7 +1,7 @@
 package org.avmedia.remotevideocam.utils
 
-import io.reactivex.Flowable
-import io.reactivex.processors.PublishProcessor
+import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.processors.PublishProcessor
 import timber.log.Timber
 
 object ProgressEvents {
