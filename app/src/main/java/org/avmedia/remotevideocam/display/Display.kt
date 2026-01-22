@@ -34,10 +34,14 @@ object Display : Fragment() {
     }
 
     fun connect(context: Context?) {
-        connection.connect(context)
+        if (::connection.isInitialized) {
+            connection.connect(context)
+        }
     }
 
     fun disconnect(context: Context?) {
-        connection.disconnect(context)
+        if (::connection.isInitialized) {
+            connection.disconnect(context)
+        }
     }
 }

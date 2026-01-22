@@ -51,7 +51,7 @@ object NetworkServiceConnection : ILocalConnection {
                         },
                         {
                             Timber.i("Display Disconnected.")
-                            ProgressEvents.onNext(ProgressEvents.Events.CameraDisconnected)
+                            ProgressEvents.onNext(ProgressEvents.Events.DisplayDisconnected)
                             try {
                                 org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.emitEvent(
                                         org.json.JSONObject("{\"command\": \"DISCONNECTED\"}")
@@ -98,8 +98,14 @@ object NetworkServiceConnection : ILocalConnection {
     override val isVideoCapable: Boolean = true
     override val name: String = "Network (NSD) Display"
 
+    private var connectionThread: Thread? = null
     private fun runConnection() {
-        Thread(
+        if (connectionThread?.isAlive == true) {
+            Timber.d("Connection thread already running.")
+            return
+        }
+        connectionThread =
+                Thread(
                         {
                             while (context != null) {
                                 if (socketHandler?.isConnected() != true) {
@@ -114,7 +120,7 @@ object NetworkServiceConnection : ILocalConnection {
                         },
                         "NSD Display Server Thread"
                 )
-                .start()
+        connectionThread?.start()
     }
 
     private fun registerService(port: Int) {

@@ -45,14 +45,19 @@ object Camera {
     }
 
     fun connect(context: Context?) {
+        // If it's a nullable type (ILocalConnection?)
         connection.connect(context)
     }
 
     fun disconnect() {
-        connection.disconnect(context)
+        // If connection is a lateinit property, check initialization first
+        if (::connection.isInitialized) {
+            connection.disconnect(context)
+        }
     }
 
     fun disconnectHard(context: Context?) {
+        // Using safe call is the cleanest way to check for null
         connection.disconnect(context)
     }
 

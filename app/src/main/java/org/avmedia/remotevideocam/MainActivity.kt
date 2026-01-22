@@ -3,7 +3,6 @@ package org.avmedia.remotevideocam
 import android.Manifest
 import android.app.PictureInPictureParams
 import android.content.Context
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
@@ -20,7 +19,6 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
-import kotlin.system.exitProcess
 import org.avmedia.remotevideocam.camera.Camera
 import org.avmedia.remotevideocam.camera.ConnectionStrategy
 import org.avmedia.remotevideocam.databinding.ActivityMainBinding
@@ -105,7 +103,8 @@ class MainActivity :
                     }
             ConnectionStrategy.setSelectedType(newType)
             dialog.dismiss()
-            restartApp()
+            ProgressEvents.onNext(ProgressEvents.Events.ShowWaitingForConnectionScreen)
+            reconnect()
         }
 
         dialog.show()
@@ -127,15 +126,32 @@ class MainActivity :
     @Override
     override fun onResume() {
         super.onResume()
+        reconnect()
+    }
 
-        Display.init(this, binding.videoView, binding.motionDetectionButton)
-        Camera.init(this, binding.videoWindow)
+    private var isReconnecting = false
+    private fun reconnect() {
+        if (isReconnecting) return
+        isReconnecting = true
 
-        if (!Camera.isConnected()) {
-            // Open display first, which waits on 'accept'
-            Display.connect(this)
-            Camera.connect(this)
-        }
+        Handler(Looper.getMainLooper())
+                .postDelayed(
+                        {
+                            Display.disconnect(this)
+                            Camera.disconnect()
+
+                            Display.init(this, binding.videoView, binding.motionDetectionButton)
+                            Camera.init(this, binding.videoWindow)
+
+                            if (!Camera.isConnected()) {
+                                // Open display first, which waits on 'accept'
+                                Display.connect(this)
+                                Camera.connect(this)
+                            }
+                            isReconnecting = false
+                        },
+                        500
+                )
     }
 
     override fun onPermissionsDenied(requestCode: Int, perms: MutableList<String>) {
@@ -231,28 +247,20 @@ class MainActivity :
                     .doOnNext {
                         when (it) {
                             ProgressEvents.Events.DisplayDisconnected -> {
-                                restartApp()
+                                ProgressEvents.onNext(
+                                        ProgressEvents.Events.ShowWaitingForConnectionScreen
+                                )
+                                reconnect()
                             }
                             ProgressEvents.Events.CameraDisconnected -> {
-                                restartApp()
+                                ProgressEvents.onNext(
+                                        ProgressEvents.Events.ShowWaitingForConnectionScreen
+                                )
+                                reconnect()
                             }
                         }
                     }
                     .subscribe({}, { throwable -> Timber.d("Got error on subscribe: $throwable") })
-
-    private fun restartApp() {
-        Handler(Looper.getMainLooper())
-                .postDelayed(
-                        {
-                            val pm: PackageManager = this.packageManager
-                            val intent = pm.getLaunchIntentForPackage(this.packageName)
-                            this.finishAffinity() // Finishes all activities.
-                            this.startActivity(intent) // Start the launch activity
-                            exitProcess(0) // System finishes and automatically relaunches us.
-                        },
-                        100
-                )
-    }
 
     companion object {
         private const val RC_ALL_PERMISSIONS = 123

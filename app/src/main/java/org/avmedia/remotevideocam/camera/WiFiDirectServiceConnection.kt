@@ -11,6 +11,7 @@ import java.util.concurrent.ArrayBlockingQueue
 import org.avmedia.remotevideocam.common.IDataReceived
 import org.avmedia.remotevideocam.common.ILocalConnection
 import org.avmedia.remotevideocam.common.LocalConnectionSocketHandler
+import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.json.JSONException
 import org.json.JSONObject
 import timber.log.Timber
@@ -123,6 +124,7 @@ class WiFiDirectServiceConnection(override val isVideoCapable: Boolean) : ILocal
     }
 
     private fun emitDisconnected() {
+        ProgressEvents.onNext(ProgressEvents.Events.DisplayDisconnected)
         try {
             DisplayToCameraEventBus.emitEvent(JSONObject("{\"command\": \"DISCONNECTED\"}"))
         } catch (e: JSONException) {
