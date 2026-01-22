@@ -18,54 +18,44 @@ import java.util.*
 import org.avmedia.remotevideocam.camera.CameraToDisplayEventBus.emitEvent
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.subscribe
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.unsubscribe
-import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionAction
-import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionData
-import org.avmedia.remotevideocam.frameanalysis.motion.MotionNotificationController
-import org.avmedia.remotevideocam.frameanalysis.motion.MotionProcessor
-import org.avmedia.remotevideocam.frameanalysis.motion.toJsonResponse
+import org.avmedia.remotevideocam.frameanalysis.motion.*
 import org.avmedia.remotevideocam.utils.AndGate
 import org.avmedia.remotevideocam.utils.ConnectionUtils
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.json.JSONException
 import org.json.JSONObject
 import org.webrtc.*
-import org.webrtc.Camera1Enumerator
-import org.webrtc.CameraVideoCapturer
-import org.webrtc.PeerConnection.*
-import org.webrtc.PeerConnectionFactory.InitializationOptions
 import timber.log.Timber
 
-/*
-This class initiates a WebRTC call to the controller, by sending an WebRTC "offer"
-to the controller, providing its A/V capabilities. It then waits for an "answer" with
-controller's capabilities. The two sides then exchange ICE candidates until a suitable
-common capabilities are found, and then media is streamed from this class to the controller.
-
-Note that the media is streamed only one way from this class to the controller.
-
-WebRTC does not specify signaling protocol. Usually, a separate signaling server is used
-witch mediates between the two WebRTC peers, and communication from and to this server is
-carried over WebSocket. However, we already have a communication channel between the peers
-(NetworkServiceConnection) so we are using it instead. No separate signaling server is required.
-
-It is possible in the future to factor out signaling into a separate class and provide
-various signalling types, such as to separate signalling server.
- */
 class WebRtcServer : IVideoServer, MotionProcessor.Listener {
     private val TAG = "WebRtcPeer"
-    private var view: SurfaceViewRenderer? = null
-    private var resolution = Size(640, 360)
 
-    // WebRTC-specific
+    // Preferred Constants
+    private val STUN_SERVER_URL = "stun:stun.l.google.com:19302"
+    private val STREAM_ID = "ARDAMS"
+    private val AUDIO_TRACK_ID = "101"
+    private val CAPTURE_THREAD_NAME = "CaptureThread"
+    private val NATIVE_LIB_NAME = "jingle_peerconnection_so"
+
+    // Command Constants
+    private val CMD_VIDEO_PROTOCOL = "VIDEO_PROTOCOL"
+    private val CMD_VIDEO_COMMAND = "VIDEO_COMMAND"
+    private val CMD_VIDEO_URL = "VIDEO_SERVER_URL"
+    private val VAL_WEBRTC = "WEBRTC"
+    private val VAL_START = "START"
+    private val VAL_STOP = "STOP"
+
+    private var view: SurfaceViewRenderer? = null
+    private var resolution = Size(VIDEO_RESOLUTION_WIDTH, VIDEO_RESOLUTION_HEIGHT)
+
     private var rootEglBase: EglBase? = null
     private var factory: PeerConnectionFactory? = null
     private var videoTrackFromCamera: VideoTrack? = null
-    var audioConstraints: MediaConstraints? = null
-    var audioSource: AudioSource? = null
-    var localAudioTrack: AudioTrack? = null
-    var surfaceTextureHelper: SurfaceTextureHelper? = null
+    private var audioSource: AudioSource? = null
+    private var localAudioTrack: AudioTrack? = null
+    private var surfaceTextureHelper: SurfaceTextureHelper? = null
     private var peerConnection: PeerConnection? = null
-    var mediaStream: MediaStream? = null
+    private var mediaStream: MediaStream? = null
     private var andGate: AndGate? = null
     private var context: Context? = null
     private val signalingHandler = SignalingHandler()
@@ -75,19 +65,19 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
     private var motionNotificationController: MotionNotificationController? = null
 
     private var isInitialized = false
-    // IVideoServer Interface
+
     override fun init(context: Context?) {
         if (isInitialized) return
         isInitialized = true
 
         this.context = context
         andGate = AndGate({ startServer() }) { stopServer() }
-        // andGate!!.addCondition("connected") // Remove this to allow local preview before
-        // connection
+
         andGate!!.addCondition("view set")
         andGate!!.addCondition("camera permission")
-        val camera = ContextCompat.checkSelfPermission(context!!, Manifest.permission.CAMERA)
-        andGate!!["camera permission"] = camera == PackageManager.PERMISSION_GRANTED
+
+        val cameraPerm = ContextCompat.checkSelfPermission(context!!, Manifest.permission.CAMERA)
+        andGate!!["camera permission"] = cameraPerm == PackageManager.PERMISSION_GRANTED
 
         if (rootEglBase == null) {
             rootEglBase = EglBase.create()
@@ -102,20 +92,17 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
         get() = isInitialized
 
     override fun startClient() {
-        emitEvent(ConnectionUtils.createStatus("VIDEO_PROTOCOL", "WEBRTC"))
+        emitEvent(ConnectionUtils.createStatus(CMD_VIDEO_PROTOCOL, VAL_WEBRTC))
         sendServerUrl()
-        emitEvent(ConnectionUtils.createStatus("VIDEO_COMMAND", "START"))
-        if (peerConnection != null) {
-            doCall()
-        }
+        emitEvent(ConnectionUtils.createStatus(CMD_VIDEO_COMMAND, VAL_START))
     }
 
     override fun sendServerUrl() {
-        emitEvent(ConnectionUtils.createStatus("VIDEO_SERVER_URL", ""))
+        emitEvent(ConnectionUtils.createStatus(CMD_VIDEO_URL, ""))
     }
 
     override fun sendVideoStoppedStatus() {
-        emitEvent(ConnectionUtils.createStatus("VIDEO_COMMAND", "STOP"))
+        emitEvent(ConnectionUtils.createStatus(CMD_VIDEO_COMMAND, VAL_STOP))
     }
 
     override fun setView(view: SurfaceView?) {}
@@ -138,399 +125,258 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
     }
 
     override fun setMotionDetection(enabled: Boolean) {
-        if (enabled) {
-            motionProcessor?.setMotionListener(this)
-        } else {
-            motionProcessor?.setMotionListener(null)
-        }
+        motionProcessor?.setMotionListener(if (enabled) this else null)
     }
 
-    // end Interface
-    // local methods
     private fun startServer() {
         initializeSurfaceViews()
         initializePeerConnectionFactory()
         createVideoTrackFromCameraAndShowIt()
         initializePeerConnections()
+
         startStreamingVideo()
+
         doCall()
         startClient()
     }
 
-    private fun doAnswer() {
-        peerConnection!!.createAnswer(
-                object : SimpleSdpObserver() {
-                    override fun onCreateSuccess(sessionDescription: SessionDescription) {
-                        peerConnection!!.setLocalDescription(
-                                SimpleSdpObserver(),
-                                sessionDescription
-                        )
-                        val message = JSONObject()
-                        try {
-                            message.put("type", "answer")
-                            message.put("sdp", sessionDescription.description)
-                            sendMessage(message)
-                        } catch (e: JSONException) {
-                            e.printStackTrace()
-                        }
-                    }
-                },
-                MediaConstraints()
-        )
-    }
-
     private fun startStreamingVideo() {
-        val STREAM_ID = "ARDAMS"
-
-        val factory = factory ?: return
         val pc = peerConnection ?: return
-
-        // Create the stream container
-        val stream = factory.createLocalMediaStream(STREAM_ID)
-        mediaStream = stream
-
-        // Add Video Track
-        videoTrackFromCamera?.let { track ->
-            stream.addTrack(track)
-            // Correct way for Unified Plan: Add track with the stream ID
-            pc.addTrack(track, listOf(stream.id))
-        }
-
-        // Add Audio Track
-        localAudioTrack?.let { track ->
-            stream.addTrack(track)
-            pc.addTrack(track, listOf(stream.id))
-        }
+        videoTrackFromCamera?.let { pc.addTrack(it, listOf(STREAM_ID)) }
+        localAudioTrack?.let { pc.addTrack(it, listOf(STREAM_ID)) }
     }
 
     private fun stopStreamingVideo() {
-        peerConnection!!.removeStream(mediaStream)
+        // In Unified Plan, we typically stop the transceivers or the capturer
+        videoCapturer?.stopCapture()
+        peerConnection?.transceivers?.forEach { it.stop() }
+    }
+
+    private fun doCall() {
+        val sdpMediaConstraints = MediaConstraints().apply {
+            mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"))
+            mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
+        }
+
+        peerConnection?.createOffer(object : SimpleSdpObserver() {
+            override fun onCreateSuccess(sessionDescription: SessionDescription) {
+                peerConnection?.setLocalDescription(SimpleSdpObserver(), sessionDescription)
+                val message = JSONObject().apply {
+                    put("type", "offer")
+                    put("sdp", sessionDescription.description)
+                }
+                sendMessage(message)
+            }
+        }, sdpMediaConstraints)
+    }
+
+    private fun doAnswer() {
+        peerConnection?.createAnswer(object : SimpleSdpObserver() {
+            override fun onCreateSuccess(sessionDescription: SessionDescription) {
+                peerConnection?.setLocalDescription(SimpleSdpObserver(), sessionDescription)
+                val message = JSONObject().apply {
+                    put("type", "answer")
+                    put("sdp", sessionDescription.description)
+                }
+                sendMessage(message)
+            }
+        }, MediaConstraints())
+    }
+
+    private fun initializePeerConnections() {
+        val iceServers = arrayListOf(
+            PeerConnection.IceServer.builder(STUN_SERVER_URL).createIceServer()
+        )
+
+        val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
+            sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+        }
+
+        peerConnection = factory?.createPeerConnection(rtcConfig, object : PeerConnection.Observer {
+            override fun onIceCandidate(iceCandidate: IceCandidate) {
+                val message = JSONObject().apply {
+                    put("type", "candidate")
+                    put("label", iceCandidate.sdpMLineIndex)
+                    put("id", iceCandidate.sdpMid)
+                    put("candidate", iceCandidate.sdp)
+                }
+                sendMessage(message)
+            }
+
+            override fun onSignalingChange(state: PeerConnection.SignalingState) {}
+            override fun onIceConnectionChange(state: PeerConnection.IceConnectionState) {}
+            override fun onIceConnectionReceivingChange(p0: Boolean) {}
+            override fun onIceGatheringChange(state: PeerConnection.IceGatheringState) {}
+            override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>) {}
+            override fun onAddStream(stream: MediaStream) {}
+            override fun onRemoveStream(stream: MediaStream) {}
+            override fun onDataChannel(channel: DataChannel) {}
+            override fun onRenegotiationNeeded() {}
+            override fun onAddTrack(receiver: RtpReceiver, streams: Array<out MediaStream>) {}
+            override fun onTrack(transceiver: RtpTransceiver) {}
+        })
+    }
+
+    private fun createVideoTrackFromCameraAndShowIt() {
+        videoCapturer = createVideoCapturer()
+        val videoSource = factory!!.createVideoSource(videoCapturer!!.isScreencast)
+
+        val newMotionProcessor = MotionProcessor().also {
+            this.motionProcessor?.release()
+            this.motionProcessor = it
+        }
+        videoSource.setVideoProcessor(VideoProcessorImpl(newMotionProcessor))
+
+        surfaceTextureHelper = SurfaceTextureHelper.create(CAPTURE_THREAD_NAME, rootEglBase!!.eglBaseContext)
+        videoCapturer!!.initialize(surfaceTextureHelper, context, videoSource.capturerObserver)
+        videoCapturer!!.startCapture(VIDEO_RESOLUTION_WIDTH, VIDEO_RESOLUTION_HEIGHT, FPS)
+
+        videoTrackFromCamera = factory!!.createVideoTrack(VIDEO_TRACK_ID, videoSource).apply {
+            setEnabled(true)
+            addSink(view)
+        }
+
+        audioSource = factory!!.createAudioSource(MediaConstraints())
+        localAudioTrack = factory!!.createAudioTrack(AUDIO_TRACK_ID, audioSource)
+    }
+
+    private fun initializePeerConnectionFactory() {
+        try {
+            System.loadLibrary(NATIVE_LIB_NAME)
+        } catch (e: UnsatisfiedLinkError) {
+            Log.e(TAG, "Native library load failed")
+        }
+
+        val options = PeerConnectionFactory.InitializationOptions.builder(context)
+            .setEnableInternalTracer(true)
+            .createInitializationOptions()
+        PeerConnectionFactory.initialize(options)
+
+        val encoderFactory = DefaultVideoEncoderFactory(rootEglBase!!.eglBaseContext, true, true)
+        val decoderFactory = DefaultVideoDecoderFactory(rootEglBase!!.eglBaseContext)
+
+        factory = PeerConnectionFactory.builder()
+            .setVideoEncoderFactory(encoderFactory)
+            .setVideoDecoderFactory(decoderFactory)
+            .createPeerConnectionFactory()
+    }
+
+    private fun initializeSurfaceViews() {
+        val currentView = view ?: return
+
+        try {
+            // Attempt to release first to ensure a clean state
+            currentView.release()
+        } catch (e: Exception) {
+            Log.w(TAG, "View release failed or was not initialized: ${e.message}")
+        }
+
+        // Initialize only if we have a valid context from the EGL base
+        rootEglBase?.eglBaseContext?.let { eglContext ->
+            currentView.init(eglContext, null)
+            currentView.setEnableHardwareScaler(true)
+            currentView.setMirror(false)
+        }
+    }
+
+    private fun createVideoCapturer(): VideoCapturer? {
+        val enumerator = if (Camera2Enumerator.isSupported(context)) {
+            Camera2Enumerator(context)
+        } else {
+            Camera1Enumerator(true)
+        }
+
+        for (name in enumerator.deviceNames) {
+            if (enumerator.isBackFacing(name)) {
+                return enumerator.createCapturer(name, null)
+            }
+        }
+        return null
     }
 
     private fun stopServer() {
         motionProcessor?.release()
         motionProcessor = null
-
-        mediaStream!!.removeTrack(videoTrackFromCamera)
-        mediaStream!!.removeTrack(localAudioTrack)
-        view!!.release()
+        stopStreamingVideo()
+        peerConnection?.dispose()
+        peerConnection = null
+        view?.release()
         stopClient()
     }
 
     private fun stopClient() {
-        emitEvent(ConnectionUtils.createStatus("VIDEO_COMMAND", "STOP"))
-    }
-
-    private fun doCall() {
-        val sdpMediaConstraints = MediaConstraints()
-        sdpMediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false")
-        )
-        sdpMediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false")
-        )
-        peerConnection!!.createOffer(
-                object : SimpleSdpObserver() {
-                    override fun onCreateSuccess(sessionDescription: SessionDescription) {
-                        peerConnection!!.setLocalDescription(
-                                SimpleSdpObserver(),
-                                sessionDescription
-                        )
-                        val message = JSONObject()
-                        try {
-                            message.put("type", "offer")
-                            message.put("sdp", sessionDescription.description)
-                            sendMessage(message)
-                        } catch (e: JSONException) {
-                            e.printStackTrace()
-                        }
-                    }
-                },
-                sdpMediaConstraints
-        )
-    }
-
-    private fun initializePeerConnections() {
-        peerConnection = createPeerConnection(factory)
-    }
-
-    private fun createPeerConnection(factory: PeerConnectionFactory?): PeerConnection? {
-        val iceServers = ArrayList<IceServer>()
-        val stunServer = IceServer.builder("stun:stun.l.google.com:19302").createIceServer()
-        iceServers.add(stunServer)
-        val rtcConfig = RTCConfiguration(iceServers)
-        val pcConstraints = MediaConstraints()
-        val pcObserver: PeerConnection.Observer =
-                object : PeerConnection.Observer {
-                    override fun onSignalingChange(signalingState: SignalingState) {
-                        Log.d(TAG, "onSignalingChange: ")
-                    }
-
-                    override fun onIceConnectionChange(iceConnectionState: IceConnectionState) {
-                        Log.d(TAG, "onIceConnectionChange: ")
-                    }
-
-                    override fun onStandardizedIceConnectionChange(newState: IceConnectionState) {}
-
-                    override fun onConnectionChange(newState: PeerConnectionState) {}
-                    override fun onIceConnectionReceivingChange(b: Boolean) {
-                        Log.d(TAG, "onIceConnectionReceivingChange: ")
-                    }
-
-                    override fun onIceGatheringChange(iceGatheringState: IceGatheringState) {
-                        Log.d(TAG, "onIceGatheringChange: ")
-                    }
-
-                    override fun onIceCandidate(iceCandidate: IceCandidate) {
-                        Log.d(TAG, "onIceCandidate: ")
-                        val message = JSONObject()
-                        try {
-                            message.put("type", "candidate")
-                            message.put("label", iceCandidate.sdpMLineIndex)
-                            message.put("id", iceCandidate.sdpMid)
-                            message.put("candidate", iceCandidate.sdp)
-                            Log.d(TAG, "onIceCandidate: sending candidate $message")
-                            sendMessage(message)
-                        } catch (e: JSONException) {
-                            e.printStackTrace()
-                        }
-                    }
-
-                    override fun onIceCandidatesRemoved(iceCandidates: Array<IceCandidate>) {
-                        Log.d(TAG, "onIceCandidatesRemoved: ")
-                    }
-
-                    override fun onSelectedCandidatePairChanged(event: CandidatePairChangeEvent) {}
-                    override fun onAddStream(mediaStream: MediaStream) {
-                        Log.d(TAG, "onAddStream: " + mediaStream.videoTracks.size)
-                        val remoteVideoTrack = mediaStream.videoTracks[0]
-                        val remoteAudioTrack = mediaStream.audioTracks[0]
-
-                        remoteAudioTrack.setEnabled(true)
-                        remoteVideoTrack.setEnabled(true)
-
-                        remoteVideoTrack.addSink(view)
-                    }
-
-                    override fun onRemoveStream(mediaStream: MediaStream) {
-                        Log.d(TAG, "onRemoveStream: ")
-                    }
-
-                    override fun onDataChannel(dataChannel: DataChannel) {
-                        Log.d(TAG, "onDataChannel: ")
-                    }
-
-                    override fun onRenegotiationNeeded() {
-                        Log.d(TAG, "onRenegotiationNeeded: ")
-                    }
-
-                    override fun onAddTrack(
-                            rtpReceiver: RtpReceiver,
-                            mediaStreams: Array<MediaStream>
-                    ) {}
-
-                    override fun onTrack(transceiver: RtpTransceiver) {}
-                }
-        return factory!!.createPeerConnection(rtcConfig, pcConstraints, pcObserver)
+        emitEvent(ConnectionUtils.createStatus(CMD_VIDEO_COMMAND, VAL_STOP))
     }
 
     private fun sendMessage(message: JSONObject) {
         emitEvent(ConnectionUtils.createStatus("WEB_RTC_EVENT", message))
     }
 
-    private fun createVideoTrackFromCameraAndShowIt() {
-        audioConstraints = MediaConstraints()
-        videoCapturer = createVideoCapturer()
-        val videoSource = factory!!.createVideoSource(videoCapturer!!.isScreencast)
+    internal inner class SignalingHandler {
+        private val pendingCandidates = mutableListOf<IceCandidate>()
 
-        val motionProcessor =
-                MotionProcessor().also {
-                    this.motionProcessor?.release()
-                    this.motionProcessor = it
+        fun handleControllerWebRtcEvents() {
+            subscribe("WEB_RTC_COMMANDS", Consumer { event ->
+                val webRtcEvent = event!!.getJSONObject("webrtc_event")
+                when (val type = webRtcEvent.getString("type")) {
+                    "offer" -> handleOffer(webRtcEvent)
+                    "answer" -> handleAnswer(webRtcEvent)
+                    "candidate" -> handleCandidate(webRtcEvent)
                 }
-        val videoProcessor = VideoProcessorImpl(motionProcessor)
-        videoSource.setVideoProcessor(videoProcessor)
-
-        surfaceTextureHelper =
-                SurfaceTextureHelper.create("CaptureThread", rootEglBase!!.eglBaseContext)
-        videoCapturer!!.initialize(surfaceTextureHelper, context, videoSource.capturerObserver)
-        videoCapturer!!.startCapture(VIDEO_RESOLUTION_WIDTH, VIDEO_RESOLUTION_HEIGHT, FPS)
-        videoTrackFromCamera = factory!!.createVideoTrack(VIDEO_TRACK_ID, videoSource)
-        videoTrackFromCamera?.setEnabled(true)
-        videoTrackFromCamera?.addSink(view)
-
-        // create an AudioSource instance
-        audioSource = factory!!.createAudioSource(audioConstraints)
-        localAudioTrack = factory!!.createAudioTrack("101", audioSource)
-    }
-
-    private fun initializePeerConnectionFactory() {
-
-        // New
-        try {
-            // Force load the native binary manually
-            System.loadLibrary("jingle_peerconnection_so")
-        } catch (e: UnsatisfiedLinkError) {
-            // If it fails here, the .so is definitely missing from the APK
-            Log.e("WebRtcServer", "Native library failed to load: ${e.message}")
+            }, { Log.e(TAG, "Signaling Error: $it") }, { it!!.has("webrtc_event") })
         }
 
-        // Now proceed with initialization
-        val options =
-                PeerConnectionFactory.InitializationOptions.builder(context)
-                        .setEnableInternalTracer(true)
-                        .createInitializationOptions()
-        PeerConnectionFactory.initialize(options)
-        // End new
-
-        val encoderFactory: VideoEncoderFactory =
-                DefaultVideoEncoderFactory(rootEglBase!!.eglBaseContext, true, true)
-        val decoderFactory: VideoDecoderFactory =
-                DefaultVideoDecoderFactory(rootEglBase!!.eglBaseContext)
-        val initializationOptions =
-                InitializationOptions.builder(context)
-                        .setEnableInternalTracer(true)
-                        .createInitializationOptions()
-        PeerConnectionFactory.initialize(initializationOptions)
-        factory =
-                PeerConnectionFactory.builder()
-                        .setVideoEncoderFactory(encoderFactory)
-                        .setVideoDecoderFactory(decoderFactory)
-                        .createPeerConnectionFactory()
-    }
-
-    private fun initializeSurfaceViews() {
-        view!!.release() // just in case
-
-        view!!.init(rootEglBase!!.eglBaseContext, null)
-        view!!.setEnableHardwareScaler(true)
-        view!!.setMirror(false)
-    }
-
-    private fun createVideoCapturer(): VideoCapturer? {
-        return if (useCamera2()) {
-            createCameraCapturer(Camera2Enumerator(context))
-        } else {
-            createCameraCapturer(Camera1Enumerator(true))
-        }
-    }
-
-    private fun useCamera2(): Boolean {
-        return Camera2Enumerator.isSupported(context)
-    }
-
-    private fun createCameraCapturer(enumerator: CameraEnumerator): VideoCapturer? {
-        val deviceNames = enumerator.deviceNames
-        for (deviceName in deviceNames) {
-            if (enumerator.isBackFacing(deviceName)) {
-                val videoCapturer: VideoCapturer? = enumerator.createCapturer(deviceName, null)
-                if (videoCapturer != null) {
-                    return videoCapturer
+        private fun handleOffer(event: JSONObject) {
+            val sdp = SessionDescription(SessionDescription.Type.OFFER, event.getString("sdp"))
+            peerConnection?.setRemoteDescription(object : SimpleSdpObserver() {
+                override fun onSetSuccess() {
+                    drainCandidates()
+                    doAnswer()
                 }
+            }, sdp)
+        }
+
+        private fun handleAnswer(event: JSONObject) {
+            val sdp = SessionDescription(SessionDescription.Type.ANSWER, event.getString("sdp"))
+            peerConnection?.setRemoteDescription(object : SimpleSdpObserver() {
+                override fun onSetSuccess() {
+                    drainCandidates()
+                }
+            }, sdp)
+        }
+
+        private fun handleCandidate(event: JSONObject) {
+            val candidate = IceCandidate(
+                event.getString("id"),
+                event.getInt("label"),
+                event.getString("candidate")
+            )
+            if (peerConnection?.remoteDescription != null) {
+                peerConnection?.addIceCandidate(candidate)
+            } else {
+                pendingCandidates.add(candidate)
             }
         }
-        return null
+
+        private fun drainCandidates() {
+            pendingCandidates.forEach { peerConnection?.addIceCandidate(it) }
+            pendingCandidates.clear()
+        }
+    }
+
+    private fun flipCamera() {
+        (videoCapturer as? CameraVideoCapturer)?.switchCamera(null)
     }
 
     @SuppressLint("LogNotTimber")
     private fun createAppEventsSubscription(context: Context?): Disposable =
-            ProgressEvents.connectionEventFlowable
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .doOnNext {
-                        when (it) {
-                            ProgressEvents.Events.FlipCamera -> flipCamera()
-                            ProgressEvents.Events.ToggleFlashlight -> toggleFlashlight()
-                        }
-                    }
-                    .subscribe(
-                            {},
-                            { throwable ->
-                                Log.d("EventsSubscription", "Got error on subscribe: $throwable")
-                            }
-                    )
-
-    private fun toggleFlashlight() {
-        // TODO
-    }
-
-    private fun flipCamera() {
-        val cameraVideoCapturer = videoCapturer as CameraVideoCapturer
-        cameraVideoCapturer.switchCamera(null)
-    }
-
-    fun toggleSound() {
-        if (mediaStream!!.audioTracks.size > 0) {
-            val audio = mediaStream!!.audioTracks[0]
-            val isEnabled = audio.enabled()
-            audio.setEnabled(!isEnabled)
-        }
-    }
-
-    // Utils
-    private fun beep() {
-        val tg = ToneGenerator(6, 100)
-        tg.startTone(ToneGenerator.TONE_CDMA_ALERT_NETWORK_LITE)
-    }
-
-    internal inner class SignalingHandler {
-        @SuppressLint("LogNotTimber")
-        fun handleControllerWebRtcEvents() {
-            subscribe(
-                    "WEB_RTC_COMMANDS",
-                    Consumer { event: JSONObject? ->
-                        val commandType = ""
-                        val webRtcEvent = event!!.getJSONObject("webrtc_event")
-                        val type = webRtcEvent.getString("type")
-                        when (type) {
-                            "offer" -> {
-                                Timber.d(
-                                        "connectToSignallingServer: received an offer \$isInitiator \$isStarted"
-                                )
-                                peerConnection!!.setRemoteDescription(
-                                        SimpleSdpObserver(),
-                                        SessionDescription(
-                                                SessionDescription.Type.OFFER,
-                                                webRtcEvent.getString("sdp")
-                                        )
-                                )
-                                doAnswer()
-                            }
-                            "answer" -> {
-                                val remoteDescr = webRtcEvent.getString("sdp")
-                                Timber.i("Got remote description %s", remoteDescr)
-                                peerConnection!!.setRemoteDescription(
-                                        SimpleSdpObserver(),
-                                        SessionDescription(
-                                                SessionDescription.Type.ANSWER,
-                                                remoteDescr
-                                        )
-                                )
-                            }
-                            "candidate" -> {
-                                val candidate =
-                                        IceCandidate(
-                                                webRtcEvent.getString("id"),
-                                                webRtcEvent.getInt("label"),
-                                                webRtcEvent.getString("candidate")
-                                        )
-                                peerConnection!!.addIceCandidate(candidate)
-                            }
-                        }
-                    },
-                    Consumer { error: Throwable? ->
-                        Log.d(TAG, "Error occurred in handleControllerWebRtcEvents: " + error)
-                    },
-                    Predicate { commandJsn: JSONObject? ->
-                        commandJsn!!.has("webrtc_event")
-                    } // filter out all non "webrtc_event" messages.
-            )
-        }
-
-        fun shutDown() {
-            // Not used
-            unsubscribe("WEB_RTC_COMMANDS")
-        }
-    }
+        ProgressEvents.connectionEventFlowable
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({ event ->
+                when (event) {
+                    ProgressEvents.Events.FlipCamera -> flipCamera()
+                }
+            }, { Log.d(TAG, "Event Error: $it") })
 
     companion object {
         const val VIDEO_TRACK_ID = "ARDAMSv0"
@@ -540,12 +386,7 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
     }
 
     override fun onDetectionResult(detected: Boolean) {
-        val action =
-                if (detected) {
-                    MotionDetectionAction.DETECTED
-                } else {
-                    MotionDetectionAction.NOT_DETECTED
-                }
+        val action = if (detected) MotionDetectionAction.DETECTED else MotionDetectionAction.NOT_DETECTED
         emitEvent(MotionDetectionData(action).toJsonResponse())
     }
 }
