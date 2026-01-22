@@ -7,25 +7,19 @@
  * Date: 2020-12-27, 10:58 p.m.
  */
 
-package org.avmedia.remotevideocam.display
+package org.avmedia.remotevideocam.utils
 
-import android.app.Activity
 import android.content.Context
 import android.content.Context.WIFI_SERVICE
-import android.graphics.Color
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.net.wifi.WifiManager
-import android.view.View
 import android.widget.Toast
-import androidx.core.content.ContextCompat
-import com.google.android.material.snackbar.Snackbar
-import org.avmedia.remotevideocam.MainActivity
-import org.avmedia.remotevideocam.R
-import timber.log.Timber
 import java.math.BigInteger
 import java.net.InetAddress
 import java.util.*
+import org.avmedia.remotevideocam.MainActivity
+import timber.log.Timber
 
 object Utils {
 
@@ -37,43 +31,88 @@ object Utils {
 
     fun beep(tone: TONE = TONE.PIP, duration: Int = 150) {
         val toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
-        val tgTone = when (tone) {
-            TONE.INTERCEPT -> {
-                ToneGenerator.TONE_CDMA_ABBR_INTERCEPT
-            }
-            TONE.ALERT -> {
-                ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD
-            }
-            else -> {
-                ToneGenerator.TONE_CDMA_PIP
-            }
-        }
+        val tgTone =
+                when (tone) {
+                    TONE.INTERCEPT -> {
+                        ToneGenerator.TONE_CDMA_ABBR_INTERCEPT
+                    }
+                    TONE.ALERT -> {
+                        ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD
+                    }
+                    else -> {
+                        ToneGenerator.TONE_CDMA_PIP
+                    }
+                }
         toneGen.startTone(tgTone, duration)
     }
 
-    fun isMe(otherIP: String): Boolean {
-        val myIP = getMyIP()
-        val isSame = otherIP == myIP
-        if (isSame) {
-            Timber.i("Same IP address $myIP, $otherIP")
+    fun isMe(otherIP: String, otherServiceName: String? = null): Boolean {
+        if (otherIP == "127.0.0.1" ||
+                        otherIP == "0.0.0.0" ||
+                        otherIP == "localhost" ||
+                        otherIP == "::1"
+        )
+                return true
+
+        // Check by IP
+        val myIPs = getAllMyIPs()
+        if (myIPs.contains(otherIP)) {
+            Timber.i("Same IP address detected: $otherIP is one of mine: $myIPs")
+            return true
         }
-        return isSame
+
+        // Check by Service Name (as a fallback)
+        otherServiceName?.let {
+            val myName = "REMOTE_VIDEO_CAM-${android.os.Build.MODEL}"
+            if (it.startsWith(myName)) {
+                Timber.i("Same Service Name detected: $it starts with $myName")
+                return true
+            }
+        }
+
+        return false
     }
 
     fun getMyIP(): String? {
-        val context: Context = MainActivity.applicationContext()
-        val wm = context.applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
-        val longIp = wm.connectionInfo.ipAddress.toLong()
-        val byteIp = BigInteger.valueOf(longIp).toByteArray().reversedArray()
-        val ipAddr = InetAddress.getByAddress(byteIp).hostAddress
-        return ipAddr
+        val ips = getAllMyIPs()
+        return ips.firstOrNull()
     }
 
+    fun getAllMyIPs(): List<String> {
+        val ips = mutableListOf<String>()
+        try {
+            // Priority 1: WifiManager
+            val context: Context = MainActivity.applicationContext()
+            val wm = context.applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+            val ipAddress = wm.connectionInfo.ipAddress
+            if (ipAddress != 0) {
+                val longIp = ipAddress.toLong()
+                val byteIp = BigInteger.valueOf(longIp).toByteArray().reversedArray()
+                val ipAddr = InetAddress.getByAddress(byteIp).hostAddress
+                ips.add(ipAddr)
+            }
+
+            // Priority 2: Network interfaces (more robust)
+            val networkInterfaces = java.net.NetworkInterface.getNetworkInterfaces()
+            for (iface in networkInterfaces) {
+                if (!iface.isUp || iface.isLoopback) continue
+                for (addr in iface.inetAddresses) {
+                    if (addr is java.net.Inet4Address) {
+                        addr.hostAddress?.let { host ->
+                            if (host != "127.0.0.1" && !ips.contains(host)) {
+                                ips.add(host)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: java.lang.Exception) {
+            Timber.e(e, "Error getting IP addresses")
+        }
+        return ips
+    }
 
     fun toast(context: Context, message: String) {
-        Toast.makeText(
-            context, message,
-            Toast.LENGTH_LONG
-        ).show()
+        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
     }
 }

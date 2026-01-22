@@ -1,6 +1,7 @@
 package org.avmedia.remotevideocam.display
 
 import android.annotation.SuppressLint
+import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
 import io.reactivex.rxjava3.subjects.PublishSubject
 
@@ -9,7 +10,7 @@ object CameraStatusEventBus {
     // but the Consumer in the subscribe method cannot.
     // For consistency, let's make the subject non-nullable too.
     private val subjects = HashMap<String, PublishSubject<String>>()
-    private val subscribers = HashMap<String, LinkedHashSet<String>> ()
+    private val subscribers = HashMap<String, LinkedHashSet<String>>()
 
     fun addSubject(name: String) {
         if (subjects[name] != null) {
@@ -26,7 +27,7 @@ object CameraStatusEventBus {
             subscribers[subscriber] = subjectsForThisSubscriber
         }
 
-        val subjectsForThisSubscriber =  subscribers[subscriber]
+        val subjectsForThisSubscriber = subscribers[subscriber]
         subjectsForThisSubscriber?.add(subject)
     }
 
@@ -36,22 +37,27 @@ object CameraStatusEventBus {
     }
 
     @SuppressLint("CheckResult")
-    fun subscribe(subscriberName: String, subject: String, onNext: Consumer<in String>) { // CORRECTED
-        if (!subscriberAlreadySubscribed(subscriberName, subject)) {
-            getProcessor(subject)?.subscribe(onNext)
-            addSubscriberAndSubject(subscriberName, subject)
-        }
+    fun subscribe(
+            subscriberName: String,
+            subject: String,
+            onNext: Consumer<in String>
+    ): Disposable? {
+        return getProcessor(subject)?.subscribe(onNext)
     }
 
     @SuppressLint("CheckResult")
-    fun subscribe(subscriberName: String, subject: String, onNext: Consumer<in String>, onError: Consumer<in Throwable>) { // CORRECTED
-        if (!subscriberAlreadySubscribed(subscriberName, subject)) {
-            getProcessor(subject)?.subscribe(onNext, onError)
-            addSubscriberAndSubject(subscriberName, subject)
-        }
+    fun subscribe(
+            subscriberName: String,
+            subject: String,
+            onNext: Consumer<in String>,
+            onError: Consumer<in Throwable>
+    ): Disposable? {
+        return getProcessor(subject)?.subscribe(onNext, onError)
     }
 
-    private fun getProcessor(name: String): PublishSubject<String>? { // Return type is now PublishSubject<String>
+    private fun getProcessor(
+            name: String
+    ): PublishSubject<String>? { // Return type is now PublishSubject<String>
         return subjects[name]
     }
 

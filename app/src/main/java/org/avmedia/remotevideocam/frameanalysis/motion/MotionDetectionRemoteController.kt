@@ -1,8 +1,8 @@
 package org.avmedia.remotevideocam.frameanalysis.motion
 
 import android.content.Context
+import org.avmedia.remotevideocam.common.ILocalConnection
 import org.avmedia.remotevideocam.display.CameraStatusEventBus
-import org.avmedia.remotevideocam.display.ILocalConnection
 import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionStateMachine.*
 import timber.log.Timber
 
@@ -14,7 +14,7 @@ private const val TAG = "MotionDetectionRemoteController"
  * 2. shows a local notification when motion is detected.
  */
 class MotionDetectionRemoteController(
-    private val connection: ILocalConnection,
+        private val connection: ILocalConnection,
 ) : Listener {
     private var notificationController: MotionNotificationController? = null
     private val motionDetectionStateMachine = MotionDetectionStateMachine()
@@ -28,11 +28,12 @@ class MotionDetectionRemoteController(
     }
 
     fun toggleMotionDetection(enable: Boolean) {
-        val value = if (enable) {
-            MotionDetectionAction.ENABLED
-        } else {
-            MotionDetectionAction.DISABLED
-        }
+        val value =
+                if (enable) {
+                    MotionDetectionAction.ENABLED
+                } else {
+                    MotionDetectionAction.DISABLED
+                }
         val data = value.toData()
         connection.sendMessage(data.toJsonResponse().toString())
         motionDetectionStateMachine.process(data)
@@ -42,13 +43,9 @@ class MotionDetectionRemoteController(
     fun subscribe() {
         CameraStatusEventBus.addSubject(MotionDetectionData.KEY)
         CameraStatusEventBus.subscribe(
-            this.javaClass.simpleName,
-            MotionDetectionData.KEY,
-        ) {
-            it?.toMotionDetectionData()?.let { data ->
-                motionDetectionStateMachine.process(data)
-            }
-        }
+                this.javaClass.simpleName,
+                MotionDetectionData.KEY,
+        ) { it?.toMotionDetectionData()?.let { data -> motionDetectionStateMachine.process(data) } }
     }
 
     override fun onStateChanged(detected: Boolean) {

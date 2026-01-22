@@ -43,6 +43,18 @@
             android:layout_marginBottom="20dp"
             app:icon="@drawable/exit" />
 
+        <ImageButton
+            android:id="@+id/settings_button"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@android:color/transparent"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_settings"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:layout_marginStart="20dp"
+            android:layout_marginBottom="20dp" />
+
     </org.avmedia.remotevideocam.customcomponents.PreConnectLayout>
 
     <org.avmedia.remotevideocam.customcomponents.MainLayout

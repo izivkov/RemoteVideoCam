@@ -13,4 +13,9 @@
     <string name="waiting_got_other_device_to_connect">Waiting for other\ndevice to connect...</string>
     <string name="notify_title">Motion Detected</string>
     <string name="notify_content_text_timestamp">At %1$s</string>
+    <string name="connection_type">Connection Type</string>
+    <string name="connection_auto">Auto (Recommended)</string>
+    <string name="connection_network">WiFi (NSD)</string>
+    <string name="connection_wifi_direct">WiFi Direct</string>
+    <string name="connection_wifi_aware">WiFi Aware</string>
 </resources>

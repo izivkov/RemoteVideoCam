@@ -12,6 +12,7 @@ object ProgressEvents {
 
     fun onNext(e: Events) {
         if (eventProcessor.hasSubscribers()) {
+            Timber.d("EventProcessor:onNext----------- {event: $e}")
             return eventProcessor.onNext(e)
         } else {
             Timber.d("EventProcessor:onNext----------- No subscribers")

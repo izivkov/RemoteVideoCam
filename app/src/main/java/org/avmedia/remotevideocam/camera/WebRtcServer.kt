@@ -74,17 +74,24 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
     private var motionProcessor: MotionProcessor? = null
     private var motionNotificationController: MotionNotificationController? = null
 
+    private var isInitialized = false
     // IVideoServer Interface
     override fun init(context: Context?) {
+        if (isInitialized) return
+        isInitialized = true
+
         this.context = context
         andGate = AndGate({ startServer() }) { stopServer() }
-        andGate!!.addCondition("connected")
+        // andGate!!.addCondition("connected") // Remove this to allow local preview before
+        // connection
         andGate!!.addCondition("view set")
         andGate!!.addCondition("camera permission")
         val camera = ContextCompat.checkSelfPermission(context!!, Manifest.permission.CAMERA)
         andGate!!["camera permission"] = camera == PackageManager.PERMISSION_GRANTED
 
-        rootEglBase = EglBase.create()
+        if (rootEglBase == null) {
+            rootEglBase = EglBase.create()
+        }
         signalingHandler.handleControllerWebRtcEvents()
         motionNotificationController = MotionNotificationController(context)
 
@@ -92,12 +99,15 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
     }
 
     override val isRunning: Boolean
-        get() = false
+        get() = isInitialized
 
     override fun startClient() {
         emitEvent(ConnectionUtils.createStatus("VIDEO_PROTOCOL", "WEBRTC"))
         sendServerUrl()
         emitEvent(ConnectionUtils.createStatus("VIDEO_COMMAND", "START"))
+        if (peerConnection != null) {
+            doCall()
+        }
     }
 
     override fun sendServerUrl() {
@@ -112,7 +122,9 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
     override fun setView(view: TextureView?) {}
     override fun setView(view: SurfaceViewRenderer?) {
         this.view = view
-        this.view!!.isEnabled = false
+        if (isInitialized) {
+            initializeSurfaceViews()
+        }
         andGate?.set("view set", true)
     }
 
@@ -364,19 +376,21 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
         }
 
         // Now proceed with initialization
-        val options = PeerConnectionFactory.InitializationOptions.builder(context)
-            .setEnableInternalTracer(true)
-            .createInitializationOptions()
+        val options =
+                PeerConnectionFactory.InitializationOptions.builder(context)
+                        .setEnableInternalTracer(true)
+                        .createInitializationOptions()
         PeerConnectionFactory.initialize(options)
         // End new
-
 
         val encoderFactory: VideoEncoderFactory =
                 DefaultVideoEncoderFactory(rootEglBase!!.eglBaseContext, true, true)
         val decoderFactory: VideoDecoderFactory =
                 DefaultVideoDecoderFactory(rootEglBase!!.eglBaseContext)
         val initializationOptions =
-                InitializationOptions.builder(context).setEnableInternalTracer(true).createInitializationOptions()
+                InitializationOptions.builder(context)
+                        .setEnableInternalTracer(true)
+                        .createInitializationOptions()
         PeerConnectionFactory.initialize(initializationOptions)
         factory =
                 PeerConnectionFactory.builder()
