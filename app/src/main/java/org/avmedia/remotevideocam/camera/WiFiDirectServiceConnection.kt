@@ -35,8 +35,8 @@ class WiFiDirectServiceConnection(override val isVideoCapable: Boolean) : ILocal
 
     override fun init(context: Context?) {
         this.context = context
-        manager = context?.getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager
-        channel = manager?.initialize(context, context.mainLooper, null)
+        manager = context?.getSystemService(Context.WIFI_P2P_SERVICE) as? WifiP2pManager
+        channel = manager?.initialize(context, context?.mainLooper, null)
         socketHandler =
                 LocalConnectionSocketHandler(
                         context,

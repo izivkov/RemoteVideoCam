@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import io.reactivex.rxjava3.disposables.Disposable
 import org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
-import org.avmedia.remotevideocam.common.IDataReceived
 import org.avmedia.remotevideocam.common.ILocalConnection
 import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionAction
 import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionData
@@ -27,11 +26,11 @@ object Camera {
             view: WebRTCSurfaceView,
     ) {
         this.context = context
-        this.connection = ConnectionStrategy.getConnection(context!!)
+        this.connection = ConnectionStrategy.getCameraConnection(context!!)
 
         if (!connection.isConnected()) {
             connection.init(context)
-            connection.setDataCallback(DataReceived())
+            connection.setDataCallback(org.avmedia.remotevideocam.common.UnifiedDataRouter())
         }
 
         videoServer.init(context)
@@ -43,13 +42,6 @@ object Camera {
 
         handleDisplayEvents()
         handleDisplayCommands()
-    }
-
-    class DataReceived : IDataReceived {
-        override fun dataReceived(data: String?) {
-            val commandJson = JSONObject(data!!)
-            DisplayToCameraEventBus.emitEvent(commandJson)
-        }
     }
 
     fun connect(context: Context?) {
@@ -65,7 +57,13 @@ object Camera {
     }
 
     private fun send(info: JSONObject) {
-        connection.sendMessage(info.toString())
+        if (connection.isConnected()) {
+            connection.sendMessage(info.toString())
+        } else if (org.avmedia.remotevideocam.display.NetworkServiceConnection.isConnected()) {
+            org.avmedia.remotevideocam.display.NetworkServiceConnection.sendMessage(info.toString())
+        } else {
+            Timber.tag(TAG).d("No connection available to send message: %s", info)
+        }
     }
 
     fun isConnected(): Boolean {
@@ -100,6 +98,7 @@ object Camera {
                                         ProgressEvents.Events.ConnectionCameraSuccessful
                                 )
                                 videoServer.setConnected(true)
+                                videoServer.startClient()
                             }
                             "DISCONNECTED" -> {
                                 Timber.d("DISCONNECTED")

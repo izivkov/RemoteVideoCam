@@ -10,15 +10,20 @@ import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionRemoteCont
 
 @SuppressLint("StaticFieldLeak")
 object Display : Fragment() {
-    private var connection: ILocalConnection = NetworkServiceConnection
-    private val motionDetectionRemoteController = MotionDetectionRemoteController(connection)
+    private lateinit var connection: ILocalConnection
+    private val motionDetectionRemoteController by lazy {
+        MotionDetectionRemoteController(connection)
+    }
 
     fun init(context: Context, videoView: VideoViewWebRTC, motionDetectionButton: ImageButton) {
+        connection =
+                org.avmedia.remotevideocam.camera.ConnectionStrategy.getDisplayConnection(context)
+
         if (!connection.isConnected()) {
             connection.init(context)
         }
+        connection.setDataCallback(org.avmedia.remotevideocam.common.UnifiedDataRouter())
         videoView.init()
-        CameraDataListener.init(connection)
 
         motionDetectionRemoteController.init(context)
         motionDetectionButton.setOnClickListener {

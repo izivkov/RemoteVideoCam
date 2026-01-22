@@ -70,10 +70,11 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                 )
                 ?.let { disposables.add(it) }
 
-        disposables.add(createAppEventsSubscription())
-
         if (rootEglBase == null) {
             rootEglBase = EglBase.create()
+        }
+        if (factory == null) {
+            initializePeerConnectionFactory()
         }
     }
 
@@ -179,11 +180,6 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
         val decoderFactory: VideoDecoderFactory =
                 DefaultVideoDecoderFactory(rootEglBase!!.eglBaseContext)
 
-        val initializationOptions =
-                PeerConnectionFactory.InitializationOptions.builder(context)
-                        .setEnableInternalTracer(true)
-                        .createInitializationOptions()
-        PeerConnectionFactory.initialize(initializationOptions)
         factory =
                 PeerConnectionFactory.builder()
                         .setVideoEncoderFactory(encoderFactory)
@@ -192,7 +188,9 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
     }
 
     private fun initializePeerConnections() {
-        peerConnection = createPeerConnection(factory)
+        if (peerConnection == null) {
+            peerConnection = createPeerConnection(factory)
+        }
     }
 
     private fun createPeerConnection(factory: PeerConnectionFactory?): PeerConnection? {
@@ -216,6 +214,7 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                     ) {}
 
                     override fun onIceCandidate(iceCandidate: IceCandidate) {
+                        Timber.d("Local ICE Candidate: ${iceCandidate.sdpMid}")
                         val message = JSONObject()
                         try {
                             message.put("type", "candidate")
@@ -232,13 +231,13 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
 
                     override fun onSelectedCandidatePairChanged(event: CandidatePairChangeEvent) {}
                     override fun onAddStream(mediaStream: MediaStream) {
-                        val remoteVideoTrack = mediaStream.videoTracks[0]
-                        remoteVideoTrack.setEnabled(true)
-
-                        val remoteAudioTrack = mediaStream.audioTracks[0]
-                        remoteAudioTrack.setEnabled(false) // start mute
-
-                        remoteVideoTrack.addSink(this@VideoViewWebRTC)
+                        Timber.d("onAddStream: ${mediaStream.id}")
+                        if (mediaStream.videoTracks.isNotEmpty()) {
+                            val remoteVideoTrack = mediaStream.videoTracks[0]
+                            remoteVideoTrack.setEnabled(true)
+                            remoteVideoTrack.addSink(this@VideoViewWebRTC)
+                            Timber.d("Attached video track from onAddStream")
+                        }
                     }
 
                     override fun onRemoveStream(mediaStream: MediaStream) {}
@@ -247,8 +246,24 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                     override fun onAddTrack(
                             rtpReceiver: RtpReceiver,
                             mediaStreams: Array<MediaStream>
-                    ) {}
-                    override fun onTrack(transceiver: RtpTransceiver) {}
+                    ) {
+                        Timber.d("onAddTrack: ${rtpReceiver.id()}")
+                        val track = rtpReceiver.track()
+                        if (track is VideoTrack) {
+                            track.setEnabled(true)
+                            track.addSink(this@VideoViewWebRTC)
+                            Timber.d("Attached video track from onAddTrack")
+                        }
+                    }
+                    override fun onTrack(transceiver: RtpTransceiver) {
+                        Timber.d("onTrack: ${transceiver.mid}")
+                        val track = transceiver.receiver.track()
+                        if (track is VideoTrack) {
+                            track.setEnabled(true)
+                            track.addSink(this@VideoViewWebRTC)
+                            Timber.d("Attached video track from onTrack")
+                        }
+                    }
                 }
         return factory!!.createPeerConnection(rtcConfig, pcConstraints, pcObserver)
     }
@@ -277,8 +292,8 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
 
     private fun sendMessage(message: JSONObject) {
         val eventMessage = JSONObject()
-        eventMessage.put("webrtc_event", message)
-        connection.sendMessage(eventMessage.toString())
+        eventMessage.put("to_camera_webrtc", message)
+        org.avmedia.remotevideocam.camera.CameraToDisplayEventBus.emitEvent(eventMessage)
     }
 
     override fun onCreateSuccess(p0: SessionDescription?) {}
@@ -309,8 +324,14 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
 
     inner class SignalingHandler {
         fun handleWebRtcEvent(webRtcEvent: JSONObject) {
-            when (webRtcEvent.getString("type")) {
+            val type = webRtcEvent.getString("type")
+            Timber.d("Received WebRTC Event: $type")
+            when (type) {
                 "offer" -> {
+                    if (peerConnection == null) {
+                        initializeSurfaceViews()
+                        initializePeerConnections()
+                    }
                     peerConnection!!.setRemoteDescription(
                             SimpleSdpObserver(),
                             SessionDescription(
@@ -327,11 +348,11 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                                     webRtcEvent.getInt("label"),
                                     webRtcEvent.getString("candidate")
                             )
-                    peerConnection!!.addIceCandidate(candidate)
+                    peerConnection?.addIceCandidate(candidate)
                 }
                 "bye" -> {
-                    // Not yet used.
                     Timber.i("got bye")
+                    stop()
                 }
             }
         }

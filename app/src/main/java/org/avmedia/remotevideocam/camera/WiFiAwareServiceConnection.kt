@@ -45,9 +45,9 @@ class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalC
 
     override fun init(context: Context?) {
         this.context = context
-        awareManager = context?.getSystemService(Context.WIFI_AWARE_SERVICE) as WifiAwareManager
+        awareManager = context?.getSystemService(Context.WIFI_AWARE_SERVICE) as? WifiAwareManager
         connectivityManager =
-                context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                context?.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         socketHandler =
                 LocalConnectionSocketHandler(
                         context,
@@ -65,7 +65,7 @@ class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalC
     @SuppressLint("MissingPermission")
     override fun connect(context: Context?) {
         start()
-        if (awareManager?.isAvailable == false) {
+        if (awareManager == null || awareManager?.isAvailable == false) {
             Timber.e("WiFi Aware is not available")
             return
         }

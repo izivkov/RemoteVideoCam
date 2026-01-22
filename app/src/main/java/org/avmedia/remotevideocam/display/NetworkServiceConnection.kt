@@ -41,10 +41,24 @@ object NetworkServiceConnection : ILocalConnection {
                         {
                             Timber.i("Display Connected.")
                             ProgressEvents.onNext(ProgressEvents.Events.ConnectionDisplaySuccessful)
+                            try {
+                                org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.emitEvent(
+                                        org.json.JSONObject("{\"command\": \"CONNECTED\"}")
+                                )
+                            } catch (e: org.json.JSONException) {
+                                e.printStackTrace()
+                            }
                         },
                         {
                             Timber.i("Display Disconnected.")
                             ProgressEvents.onNext(ProgressEvents.Events.CameraDisconnected)
+                            try {
+                                org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.emitEvent(
+                                        org.json.JSONObject("{\"command\": \"DISCONNECTED\"}")
+                                )
+                            } catch (e: org.json.JSONException) {
+                                e.printStackTrace()
+                            }
                         }
                 )
         registerService(port)

@@ -8,6 +8,7 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import android.util.Rational
 import android.view.View
 import android.view.WindowInsets
@@ -181,6 +182,7 @@ class MainActivity :
                 )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             perms += Manifest.permission.POST_NOTIFICATIONS
+            perms += Manifest.permission.NEARBY_WIFI_DEVICES
         }
         if (!EasyPermissions.hasPermissions(this, *perms)) {
             // Do not have permissions, request them now
@@ -239,7 +241,7 @@ class MainActivity :
                     .subscribe({}, { throwable -> Timber.d("Got error on subscribe: $throwable") })
 
     private fun restartApp() {
-        Handler()
+        Handler(Looper.getMainLooper())
                 .postDelayed(
                         {
                             val pm: PackageManager = this.packageManager

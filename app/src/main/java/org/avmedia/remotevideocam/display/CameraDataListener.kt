@@ -23,16 +23,22 @@ object CameraDataListener {
         val dataReceived: IDataReceived =
                 object : IDataReceived {
                     override fun dataReceived(data: String?) {
-
-                        val dataJson = JSONObject(data as String)
+                        if (data == null) return
+                        val dataJson = JSONObject(data)
                         if (dataJson.has("status")) {
                             processStatus(dataJson.getJSONObject("status"))
                         }
 
-                        if (dataJson.has("webrtc_event")) {
+                        if (dataJson.has("to_display_webrtc")) {
                             CameraStatusEventBus.emitEvent(
                                     "WEB_RTC_EVENT",
-                                    dataJson.getJSONObject("webrtc_event").toString()
+                                    dataJson.getJSONObject("to_display_webrtc").toString()
+                            )
+                        }
+                        if (dataJson.has("to_camera_webrtc")) {
+                            // Also emit to Camera side bus for bi-directional signaling
+                            org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.emitEvent(
+                                    dataJson
                             )
                         }
 
