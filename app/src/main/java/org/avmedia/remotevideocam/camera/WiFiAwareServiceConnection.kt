@@ -19,19 +19,26 @@ import org.avmedia.remotevideocam.common.LocalConnectionSocketHandler
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.json.JSONObject
 import timber.log.Timber
+import java.net.Inet6Address
+
+typealias dict<K, V> = Map<K, V>
 
 @RequiresApi(Build.VERSION_CODES.O)
 class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalConnection {
     override val name: String = "WiFi Aware"
 
     companion object {
-        private const val SERVICE_NAME = "REMOTE_VIDEO_CAM_AWARE"
+        private const val SERVICE_NAME = "RVC_AWARE_STREAM"
         private const val DEFAULT_PORT = 8889
         private const val QUEUE_CAPACITY = 25
         private const val IPV6_HOST = "FE80::1"
         private const val THREAD_NAME = "WiFiAware Connection Thread"
         private const val PSK = "RemoteCamSecure123"
-        private const val TRANSPORT_PROTOCOL_TCP = 6
+        private const val COMMAND_KEY = "command"
+        private const val EVENT_CONNECTED = "CONNECTED"
+        private const val EVENT_DISCONNECTED = "DISCONNECTED"
+        private const val MSG_ID_TIE_BREAK = 0
+        private const val SOCKET_DELAY_MS = 1000L
     }
 
     private var awareManager: WifiAwareManager? = null
@@ -41,9 +48,14 @@ class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalC
     private var context: Context? = null
     private var dataReceivedCallback: IDataReceived? = null
 
-    private var discoverySession: DiscoverySession? = null
+    private var publishSession: PublishDiscoverySession? = null
+    private var subscribeSession: SubscribeDiscoverySession? = null
+
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var isConnecting = false
+    private var didInitiateDataPath = false
+
+    private val localDeviceId = "${Build.MODEL}_${Build.BOARD}_${(100..999).random()}"
 
     override fun init(context: Context?) {
         this.context = context
@@ -65,7 +77,10 @@ class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalC
     @SuppressLint("MissingPermission")
     override fun connect(context: Context?) {
         cleanup()
-
+        if (awareManager?.isAvailable == false) {
+            Timber.e("WiFi Aware unavailable")
+            return
+        }
         awareManager?.attach(object : AttachCallback() {
             override fun onAttached(session: WifiAwareSession) {
                 awareSession = session
@@ -76,80 +91,135 @@ class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalC
 
     @SuppressLint("MissingPermission")
     private fun startDiscovery(session: WifiAwareSession) {
-        val pubConfig = PublishConfig.Builder().setServiceName(SERVICE_NAME).build()
+        val pubConfig = PublishConfig.Builder()
+            .setServiceName(SERVICE_NAME)
+            .setServiceSpecificInfo(localDeviceId.toByteArray())
+            .build()
+
         session.publish(pubConfig, object : DiscoverySessionCallback() {
             override fun onPublishStarted(session: PublishDiscoverySession) {
-                discoverySession = session
+                publishSession = session
+                Timber.d("WiFiAware: Publish Started. ID: $localDeviceId")
+            }
+
+            override fun onMessageReceived(peerHandle: PeerHandle, message: ByteArray) {
+                val remoteId = String(message)
+                if (localDeviceId < remoteId && !didInitiateDataPath) {
+                    Timber.d("WiFiAware: I am RESPONDER")
+                    setupDataPath(peerHandle, isInitiator = false)
+                }
             }
         }, Handler(Looper.getMainLooper()))
 
         val subConfig = SubscribeConfig.Builder().setServiceName(SERVICE_NAME).build()
+
         session.subscribe(subConfig, object : DiscoverySessionCallback() {
+            override fun onSubscribeStarted(session: SubscribeDiscoverySession) {
+                subscribeSession = session
+                Timber.d("WiFiAware: Subscribe Started")
+            }
+
             override fun onServiceDiscovered(peerHandle: PeerHandle, info: ByteArray, matches: List<ByteArray>) {
-                if (isConnecting) return
-                isConnecting = true
-                setupDataPath(peerHandle)
+                val remoteId = String(info)
+                if (isConnecting || didInitiateDataPath) return
+
+                if (localDeviceId > remoteId) {
+                    isConnecting = true
+                    didInitiateDataPath = true
+                    Timber.d("WiFiAware: I am INITIATOR")
+                    setupDataPath(peerHandle, isInitiator = true)
+                } else {
+                    publishSession?.sendMessage(peerHandle, MSG_ID_TIE_BREAK, localDeviceId.toByteArray())
+                }
             }
         }, Handler(Looper.getMainLooper()))
     }
 
-    private fun setupDataPath(peerHandle: PeerHandle) {
-        val session = discoverySession ?: return
+    private fun setupDataPath(peerHandle: PeerHandle, isInitiator: Boolean) {
+        val sessionToUse: DiscoverySession? = if (isInitiator) subscribeSession else publishSession
 
-        // IMPORTANT: We specify TCP protocol but let the system handle channel selection
-        // given the existing Wi-Fi connection.
-        val specifier = if (session is SubscribeDiscoverySession) {
-            WifiAwareNetworkSpecifier.Builder(session, peerHandle)
-                .setPskPassphrase(PSK)
-                .build()
-        } else {
-            WifiAwareNetworkSpecifier.Builder(session as PublishDiscoverySession, peerHandle)
-                .setPskPassphrase(PSK)
-                .build()
+        if (sessionToUse == null) {
+            Timber.e("WiFiAware: Session missing for role")
+            return
         }
 
-        // We use a broader request to allow the system to negotiate
-        // coexistence with the existing Wi-Fi network.
+        // Role constants
+        val roleInitiator = 1 // WifiAwareManager.WIFI_AWARE_DATA_PATH_ROLE_INITIATOR
+        val roleResponder = 0 // WifiAwareManager.WIFI_AWARE_DATA_PATH_ROLE_RESPONDER
+        val role = if (isInitiator) roleInitiator else roleResponder
+
+        // Create the builder and cast it explicitly to ensure the compiler sees the API 31+ methods
+        val builder = WifiAwareNetworkSpecifier.Builder(sessionToUse, peerHandle)
+        builder.setPskPassphrase(PSK)
+
+        // Explicit role setting - Since compileSdk is 36, this should resolve.
+        // If it red-lines in the IDE, ignore it and try to build, or use 'builder.setDataPathRole(role)'
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+//            builder.setDataPathRole(role)
+//        }
+
         val request = NetworkRequest.Builder()
             .addTransportType(NetworkCapabilities.TRANSPORT_WIFI_AWARE)
-            .removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED) // Broaden search
-            .setNetworkSpecifier(specifier)
+            .removeCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED)
+            .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .setNetworkSpecifier(builder.build())
             .build()
 
         networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                Timber.d("Network Available despite Infrastructure Wi-Fi!")
-                startSocketThread(session is SubscribeDiscoverySession)
+                Timber.d("WiFi Aware Network Ready. Role: ${if (isInitiator) "Initiator" else "Responder"}")
+                startSocketThread(network, isInitiator)
             }
             override fun onUnavailable() {
-                Timber.e("Factory rejected. Try disconnecting from standard Wi-Fi.")
                 isConnecting = false
+                didInitiateDataPath = false
+                Timber.e("WiFi Aware Network Negotiation Timed Out")
             }
         }
+
         connectivityManager?.requestNetwork(request, networkCallback!!)
     }
 
-    private fun startSocketThread(isClient: Boolean) {
+    private fun startSocketThread(network: Network, isClient: Boolean) {
         Thread({
-            if (isClient) {
-                socketHandler?.connect(IPV6_HOST, DEFAULT_PORT)?.let { socketHandler?.startCommunication(it) }
-            } else {
-                socketHandler?.waitForConnection(DEFAULT_PORT)?.let { socketHandler?.startCommunication(it) }
+            try {
+                val linkProperties = connectivityManager?.getLinkProperties(network)
+                val ipv6Addr = linkProperties?.linkAddresses
+                    ?.firstOrNull { it.address is Inet6Address }
+                    ?.address?.hostAddress?.split("%")?.get(0) ?: IPV6_HOST
+
+                if (isClient) {
+                    Thread.sleep(SOCKET_DELAY_MS)
+                    socketHandler?.connect(ipv6Addr, DEFAULT_PORT)?.let {
+                        socketHandler?.startCommunication(it)
+                    }
+                } else {
+                    socketHandler?.waitForConnection(DEFAULT_PORT)?.let {
+                        socketHandler?.startCommunication(it)
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Socket Error")
+                isConnecting = false
+                didInitiateDataPath = false
             }
         }, THREAD_NAME).start()
     }
 
     private fun cleanup() {
         isConnecting = false
+        didInitiateDataPath = false
         try {
             networkCallback?.let { connectivityManager?.unregisterNetworkCallback(it) }
-            discoverySession?.close()
+            publishSession?.close()
+            subscribeSession?.close()
             awareSession?.close()
         } catch (e: Exception) {
             Timber.e(e)
         }
         networkCallback = null
-        discoverySession = null
+        publishSession = null
+        subscribeSession = null
         awareSession = null
     }
 
@@ -161,15 +231,18 @@ class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalC
 
     private fun emitConnected() {
         (context as? Activity)?.runOnUiThread {
-            DisplayToCameraEventBus.emitEvent(JSONObject(mapOf("command" to "CONNECTED")))
+            val eventData: dict<String, String> = mapOf(COMMAND_KEY to EVENT_CONNECTED)
+            DisplayToCameraEventBus.emitEvent(JSONObject(eventData))
         }
     }
 
     private fun emitDisconnected() {
         isConnecting = false
+        didInitiateDataPath = false
         ProgressEvents.onNext(ProgressEvents.Events.DisplayDisconnected)
         (context as? Activity)?.runOnUiThread {
-            DisplayToCameraEventBus.emitEvent(JSONObject(mapOf("command" to "DISCONNECTED")))
+            val eventData: dict<String, String> = mapOf(COMMAND_KEY to EVENT_DISCONNECTED)
+            DisplayToCameraEventBus.emitEvent(JSONObject(eventData))
         }
     }
 }

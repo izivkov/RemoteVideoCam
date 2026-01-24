@@ -103,8 +103,8 @@ object ConnectionStrategy {
     }
 
     private fun determineBestConnectionType(context: Context): ConnectionType {
-        // return ConnectionType.NETWORK
-        return ConnectionType.WIFI_AWARE
+        return ConnectionType.NETWORK
+        // return ConnectionType.WIFI_AWARE
         // return ConnectionType.WIFI_DIRECT
     }
 }
