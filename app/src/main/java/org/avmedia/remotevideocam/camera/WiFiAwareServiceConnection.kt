@@ -21,7 +21,7 @@ import org.json.JSONObject
 import timber.log.Timber
 import java.net.Inet6Address
 
-typealias dict<K, V> = Map<K, V>
+// typealias dict<K, V> = Map<K, V>
 
 @RequiresApi(Build.VERSION_CODES.O)
 class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalConnection {
@@ -231,7 +231,7 @@ class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalC
 
     private fun emitConnected() {
         (context as? Activity)?.runOnUiThread {
-            val eventData: dict<String, String> = mapOf(COMMAND_KEY to EVENT_CONNECTED)
+            val eventData: Map<String, String> = mapOf(COMMAND_KEY to EVENT_CONNECTED)
             DisplayToCameraEventBus.emitEvent(JSONObject(eventData))
         }
     }
@@ -241,7 +241,7 @@ class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalC
         didInitiateDataPath = false
         ProgressEvents.onNext(ProgressEvents.Events.DisplayDisconnected)
         (context as? Activity)?.runOnUiThread {
-            val eventData: dict<String, String> = mapOf(COMMAND_KEY to EVENT_DISCONNECTED)
+            val eventData: Map<String, String> = mapOf(COMMAND_KEY to EVENT_DISCONNECTED)
             DisplayToCameraEventBus.emitEvent(JSONObject(eventData))
         }
     }
