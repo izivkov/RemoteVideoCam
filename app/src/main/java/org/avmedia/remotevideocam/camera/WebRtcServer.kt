@@ -121,6 +121,10 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
         andGate?.set("resolution set", true)
     }
 
+    override fun setMotionDetection(enabled: Boolean) {
+        motionProcessor?.setMotionListener(if (enabled) this else null)
+    }
+
     private fun startServer() {
         initializeSurfaceViews()
         initializePeerConnectionFactory()

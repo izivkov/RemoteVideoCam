@@ -8,7 +8,7 @@ import org.webrtc.SurfaceViewRenderer
 interface IVideoServer {
     fun setResolution(w: Int, h: Int)
     fun setConnected(connected: Boolean)
-//    fun setMotionDetection(enabled: Boolean)
+    fun setMotionDetection(enabled: Boolean)
     fun init(context: Context?)
     val isRunning: Boolean
     fun startClient()

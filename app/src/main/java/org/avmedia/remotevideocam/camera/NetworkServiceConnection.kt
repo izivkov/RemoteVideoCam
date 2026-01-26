@@ -4,13 +4,13 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import java.util.concurrent.ArrayBlockingQueue
 import org.avmedia.remotevideocam.common.IDataReceived
 import org.avmedia.remotevideocam.common.ILocalConnection
 import org.avmedia.remotevideocam.common.LocalConnectionSocketHandler
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.utils.Utils
 import timber.log.Timber
-import java.util.concurrent.ArrayBlockingQueue
 
 class NetworkServiceConnection : ILocalConnection {
     override val name: String = "Network (NSD) Camera"
@@ -26,18 +26,18 @@ class NetworkServiceConnection : ILocalConnection {
     override fun init(context: Context?) {
         this.context = context
         MY_SERVICE_NAME =
-            "REMOTE_VIDEO_CAM-${android.os.Build.MODEL}-${Utils.getMyIP() ?: "unknown"}"
+                "REMOTE_VIDEO_CAM-${android.os.Build.MODEL}-${Utils.getMyIP() ?: "unknown"}"
         Timber.d("Initialised MY_SERVICE_NAME: $MY_SERVICE_NAME")
 
         mNsdManager = context?.getSystemService(Context.NSD_SERVICE) as NsdManager
         socketHandler =
-            LocalConnectionSocketHandler(
-                context,
-                ArrayBlockingQueue(25),
-                { dataReceivedCallback },
-                { emitConnected() },
-                { emitDisconnected() }
-            )
+                LocalConnectionSocketHandler(
+                        context,
+                        ArrayBlockingQueue(25),
+                        { dataReceivedCallback },
+                        { emitConnected() },
+                        { emitDisconnected() }
+                )
     }
 
     private fun emitConnected() {
@@ -52,7 +52,7 @@ class NetworkServiceConnection : ILocalConnection {
     private fun emitDisconnected() {
         try {
             DisplayToCameraEventBus.emitEvent(
-                org.json.JSONObject("{\"command\": \"DISCONNECTED\"}")
+                    org.json.JSONObject("{\"command\": \"DISCONNECTED\"}")
             )
         } catch (e: org.json.JSONException) {
             e.printStackTrace()
@@ -103,9 +103,9 @@ class NetworkServiceConnection : ILocalConnection {
         try {
             mDiscoveryListener = createDiscoveryListener()
             mNsdManager?.discoverServices(
-                SERVICE_TYPE,
-                NsdManager.PROTOCOL_DNS_SD,
-                mDiscoveryListener
+                    SERVICE_TYPE,
+                    NsdManager.PROTOCOL_DNS_SD,
+                    mDiscoveryListener
             )
         } catch (e: Exception) {
             Timber.e("runConnection: Exception: $e")
@@ -124,7 +124,7 @@ class NetworkServiceConnection : ILocalConnection {
                     if (service.serviceType.contains(SERVICE_TYPE.trimEnd('.'))) {
                         val isSelf = service.serviceName == MY_SERVICE_NAME
                         Timber.d(
-                            "Service found: ${service.serviceName}, type: ${service.serviceType}. isSelf: $isSelf"
+                                "Service found: ${service.serviceName}, type: ${service.serviceType}. isSelf: $isSelf"
                         )
                         if (!isSelf) {
                             Timber.d("Resolving service: ${service.serviceName}")
@@ -162,43 +162,42 @@ class NetworkServiceConnection : ILocalConnection {
                 Timber.e("Discovery failed: Error code:%s", errorCode)
                 try {
                     mNsdManager?.stopServiceDiscovery(this)
-                } catch (e: Exception) {
-                }
+                } catch (e: Exception) {}
             }
         }
     }
 
     private var mResolveListener: NsdManager.ResolveListener =
-        object : NsdManager.ResolveListener {
-            override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                Timber.e("Resolve failed %s", errorCode)
-                runConnection()
-            }
-
-            override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                Timber.d("Resolve Succeeded. %s", serviceInfo)
-
-                val port: Int = serviceInfo.port
-                val host: String = serviceInfo.host.hostAddress
-
-                if (Utils.isMe(host, serviceInfo.serviceName)) {
-                    Timber.d("Same device (IP or Name matching). Ignoring connection to self.")
-                    return
+            object : NsdManager.ResolveListener {
+                override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                    Timber.e("Resolve failed %s", errorCode)
+                    runConnection()
                 }
 
-                Thread(
-                    {
-                        socketHandler?.connect(host, port)?.run {
-                            socketHandler!!.startCommunication(this)
-                            Timber.tag(TAG).i("Connected....")
-                        }
-                            ?: Timber.d("Could not get a connection")
-                    },
-                    "NetworkServiceConnection Connect Thread"
-                )
-                    .start()
+                override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
+                    Timber.d("Resolve Succeeded. %s", serviceInfo)
+
+                    val port: Int = serviceInfo.port
+                    val host: String = serviceInfo.host.hostAddress
+
+                    if (Utils.isMe(host, serviceInfo.serviceName)) {
+                        Timber.d("Same device (IP or Name matching). Ignoring connection to self.")
+                        return
+                    }
+
+                    Thread(
+                                    {
+                                        socketHandler?.connect(host, port)?.run {
+                                            socketHandler!!.startCommunication(this)
+                                            Timber.tag(TAG).i("Connected....")
+                                        }
+                                                ?: Timber.d("Could not get a connection")
+                                    },
+                                    "NetworkServiceConnection Connect Thread"
+                            )
+                            .start()
+                }
             }
-        }
 
     companion object {
         private const val TAG = "NetworkServiceConnCamera"
