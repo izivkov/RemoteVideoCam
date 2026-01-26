@@ -15,7 +15,7 @@ object Display : Fragment() {
         MotionDetectionRemoteController(connection)
     }
 
-    fun init(context: Context, videoView: VideoViewWebRTC, motionDetectionButton: ImageButton? = null) {
+    fun init(context: Context, videoView: VideoViewWebRTC, motionDetectionButton: ImageButton) {
         connection =
                 org.avmedia.remotevideocam.camera.ConnectionStrategy.getDisplayConnection(context)
 
@@ -26,7 +26,7 @@ object Display : Fragment() {
         videoView.init()
 
         motionDetectionRemoteController.init(context)
-        motionDetectionButton?.setOnClickListener {
+        motionDetectionButton.setOnClickListener {
             val enabled = !it.isSelected
             it.isSelected = enabled
             motionDetectionRemoteController.toggleMotionDetection(enabled)
