@@ -15,7 +15,6 @@ import org.webrtc.VideoFrame
 import org.webrtc.VideoFrame.TextureBuffer
 import org.webrtc.VideoFrameDrawer
 import org.webrtc.YuvConverter
-import timber.log.Timber
 
 /**
  * Transform Mat coordinates(top-left) to Texture coordinates(bottom-left) by flipping the y value.
@@ -60,42 +59,7 @@ class MotionProcessor : VideoProcessorImpl.FrameProcessor {
             return@trace frame
         }
 
-        return@trace processInternal(frame)
-    }
-
-    private fun processInternal(frame: VideoFrame): VideoFrame {
-        val textureBuffer = frame.buffer as TextureBufferImpl
-        val contours = motionDetector.analyzeMotion(textureBuffer)
-        val motionDetected = contours.isNotEmpty()
-
-        notifyListener(motionDetected)
-
-        val resultBuffer = if (motionDetected && renderMotion) {
-            val modifiedBuffer = modifyTextureBuffer(textureBuffer, contours)
-            VideoFrame(modifiedBuffer, frame.rotation, frame.timestampNs)
-        } else {
-            frame
-        }
-
-        contours.forEach {
-            it.release()
-        }
-
-        return resultBuffer
-    }
-
-    fun setMotionListener(listener: Listener?, renderMotion: Boolean = false) {
-        Timber.tag(TAG).i(
-            "setMotionListener, listener %s, renderMotion %s",
-            listener,
-            renderMotion
-        )
-        this.listener = listener
-        this.renderMotion = renderMotion
-    }
-
-    private fun notifyListener(motionDetected: Boolean) {
-        listener?.onDetectionResult(motionDetected)
+        return@trace frame
     }
 
     private fun modifyTextureBuffer(

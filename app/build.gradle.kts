@@ -17,13 +17,13 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
-//        ndk {
-//            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
-//        }
-
         ndk {
-            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86_64"))
+            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
         }
+
+//        ndk {
+//            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86_64"))
+//        }
     }
 
     buildFeatures {
