@@ -5,9 +5,6 @@ import android.content.Context
 import io.reactivex.rxjava3.disposables.Disposable
 import org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
 import org.avmedia.remotevideocam.common.ILocalConnection
-import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionAction
-import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionData
-import org.avmedia.remotevideocam.frameanalysis.motion.toMotionDetectionData
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.json.JSONObject
 import timber.log.Timber
@@ -112,22 +109,6 @@ object Camera {
                             }
                         }
                     }
-                    event?.takeIf { it.has(MotionDetectionData.KEY) }?.let {
-                        event.getJSONObject(MotionDetectionData.KEY).toMotionDetectionData().let {
-                                data ->
-                            when (data.action) {
-                                MotionDetectionAction.ENABLED -> setMotionDetection(true)
-                                MotionDetectionAction.DISABLED -> setMotionDetection(false)
-                                MotionDetectionAction.DETECTED,
-                                MotionDetectionAction.NOT_DETECTED ->
-                                        Timber.tag(TAG)
-                                                .e(
-                                                        "Unexpected motion detection action %s",
-                                                        data.action.name
-                                                )
-                            }
-                        }
-                    }
                 },
                 { error: Throwable? ->
                     Timber.d("Error occurred in handleControllerWebRtcEvents: $error")
@@ -135,14 +116,9 @@ object Camera {
                 { commandJsn: JSONObject? ->
                     commandJsn!!.has("command") &&
                             ("CONNECTED" == commandJsn.getString("command") ||
-                                    "DISCONNECTED" == commandJsn.getString("command")) ||
-                            commandJsn.has(MotionDetectionData.KEY)
+                                    "DISCONNECTED" == commandJsn.getString("command"))
                     // filter everything else
                 }
         )
-    }
-
-    private fun setMotionDetection(enable: Boolean) {
-        videoServer.setMotionDetection(enable)
     }
 }

@@ -11,7 +11,6 @@ package org.avmedia.remotevideocam.display
 
 import org.avmedia.remotevideocam.common.IDataReceived
 import org.avmedia.remotevideocam.common.ILocalConnection
-import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionData
 import org.json.JSONObject
 
 /*
@@ -41,10 +40,6 @@ object CameraDataListener {
                                     dataJson
                             )
                         }
-
-                        if (dataJson.has(MotionDetectionData.KEY)) {
-                            processMotionDetection(dataJson.getString(MotionDetectionData.KEY))
-                        }
                     }
 
                     private fun processStatus(statusValues: JSONObject) {
@@ -57,10 +52,6 @@ object CameraDataListener {
                             */
                             CameraStatusEventBus.emitEvent(key, value)
                         }
-                    }
-
-                    private fun processMotionDetection(dataJson: String) {
-                        CameraStatusEventBus.emitEvent(MotionDetectionData.KEY, dataJson)
                     }
                 }
 
