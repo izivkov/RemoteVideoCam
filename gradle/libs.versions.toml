@@ -1,6 +1,6 @@
 [versions]
 agp = "8.12.3"
-kotlin = "1.9.24"
+kotlin = "2.0.21"
 coreKtx = "1.17.0"
 appcompat = "1.7.1"
 constraintlayout = "2.2.1"

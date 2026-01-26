@@ -13,16 +13,21 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
-import android.widget.RadioGroup
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
-import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.bottomsheet.BottomSheetDialog
+import androidx.core.view.WindowCompat
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
 import org.avmedia.remotevideocam.camera.Camera
-import org.avmedia.remotevideocam.camera.ConnectionStrategy
-import org.avmedia.remotevideocam.databinding.ActivityMainBinding
+import org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
 import org.avmedia.remotevideocam.display.Display
+import org.avmedia.remotevideocam.display.customcomponents.VideoViewWebRTC
+import org.avmedia.remotevideocam.ui.MainActivityContent
+import org.avmedia.remotevideocam.ui.navigation.Screen
+import org.avmedia.remotevideocam.ui.viewmodel.MainViewModel
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.avmedia.remotevideocam.utils.Utils.toast
 import pub.devrel.easypermissions.AfterPermissionGranted
@@ -31,12 +36,16 @@ import pub.devrel.easypermissions.EasyPermissions
 import timber.log.Timber
 
 class MainActivity :
-        AppCompatActivity(),
+        ComponentActivity(),
         EasyPermissions.PermissionCallbacks,
         EasyPermissions.RationaleCallbacks {
 
-    private lateinit var binding: ActivityMainBinding
-    private val TAG = "MainActivity"
+    private val viewModel: MainViewModel by viewModels()
+    private val disposables = CompositeDisposable()
+
+    // WebRTC views - created lazily for integration with Compose
+    private var webRTCSurfaceView: WebRTCSurfaceView? = null
+    private var videoViewWebRTC: VideoViewWebRTC? = null
 
     init {
         instance = this
@@ -45,69 +54,42 @@ class MainActivity :
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Enable edge-to-edge
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        getPermission()
+
+        // Create WebRTC views
         try {
-            binding = ActivityMainBinding.inflate(layoutInflater)
+            webRTCSurfaceView = WebRTCSurfaceView(this)
+            videoViewWebRTC = VideoViewWebRTC(this)
         } catch (e: Exception) {
-            Timber.d("ActivityMainBinding failed : $e")
+            Timber.e("Failed to create WebRTC views: $e")
             val message =
                     "This app requires WiFi connection. Please connect both devices to the same WiFi network and restart..."
-            toast(this, message)
             toast(this, message)
             finish()
             return
         }
 
-        setContentView(binding.root)
+        // Setup Compose UI
+        setContent {
+            MainActivityContent(
+                    viewModel = viewModel,
+                    webRTCSurfaceView = webRTCSurfaceView,
+                    videoViewWebRTC = videoViewWebRTC,
+                    onReconnect = { reconnect() }
+            )
+        }
 
-        // AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        setScreenCharacteristics()
 
-        setScreenCharacteristics() // this should be called after "setContentView()"
-        getPermission()
-
-        ScreenSelector.add("main screen", binding.mainLayout)
-        ScreenSelector.add("waiting for connection screen", binding.waitingToConnectLayout)
-        ScreenSelector.add("display screen", binding.displayLayout)
-        ScreenSelector.add("camera screen", binding.cameraLayout)
-
+        // Subscribe to progress events
         createAppEventsSubscription()
-        ProgressEvents.onNext(ProgressEvents.Events.ShowWaitingForConnectionScreen)
 
-        binding.settingsButton.setOnClickListener { showConnectionSelectionDialog() }
-    }
-
-    private fun showConnectionSelectionDialog() {
-        val dialog = BottomSheetDialog(this)
-        val view = layoutInflater.inflate(R.layout.dialog_connection_selection, null)
-        dialog.setContentView(view)
-
-        val radioGroup = view.findViewById<RadioGroup>(R.id.connection_type_group)
-        val currentType = ConnectionStrategy.getSelectedType()
-
-        when (currentType) {
-            ConnectionStrategy.ConnectionType.AUTO -> radioGroup.check(R.id.radio_auto)
-            ConnectionStrategy.ConnectionType.NETWORK -> radioGroup.check(R.id.radio_network)
-            ConnectionStrategy.ConnectionType.WIFI_DIRECT ->
-                    radioGroup.check(R.id.radio_wifi_direct)
-            ConnectionStrategy.ConnectionType.WIFI_AWARE -> radioGroup.check(R.id.radio_wifi_aware)
-        }
-
-        radioGroup.setOnCheckedChangeListener { _, checkedId ->
-            val newType =
-                    when (checkedId) {
-                        R.id.radio_auto -> ConnectionStrategy.ConnectionType.AUTO
-                        R.id.radio_network -> ConnectionStrategy.ConnectionType.NETWORK
-                        R.id.radio_wifi_direct -> ConnectionStrategy.ConnectionType.WIFI_DIRECT
-                        R.id.radio_wifi_aware -> ConnectionStrategy.ConnectionType.WIFI_AWARE
-                        else -> ConnectionStrategy.ConnectionType.AUTO
-                    }
-            ConnectionStrategy.setSelectedType(newType)
-            dialog.dismiss()
-            ProgressEvents.onNext(ProgressEvents.Events.ShowWaitingForConnectionScreen)
-            reconnect()
-        }
-
-        dialog.show()
+        // Show waiting screen initially
+        viewModel.showWaitingScreen()
     }
 
     override fun onUserLeaveHint() {
@@ -118,15 +100,18 @@ class MainActivity :
         }
     }
 
-    @Override
     override fun onPause() {
         super.onPause()
     }
 
-    @Override
     override fun onResume() {
         super.onResume()
         reconnect()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        disposables.clear()
     }
 
     private var isReconnecting = false
@@ -140,11 +125,10 @@ class MainActivity :
                             Display.disconnect(this)
                             Camera.disconnect()
 
-                            Display.init(this, binding.videoView)
-                            Camera.init(this, binding.videoWindow)
+                            videoViewWebRTC?.let { video -> Display.init(this, video) }
+                            webRTCSurfaceView?.let { surface -> Camera.init(this, surface) }
 
                             if (!Camera.isConnected()) {
-                                // Open display first, which waits on 'accept'
                                 Display.connect(this)
                                 Camera.connect(this)
                             }
@@ -168,21 +152,19 @@ class MainActivity :
             newConfig: Configuration
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-        if (ScreenSelector.currentScreen?.name == "display screen") {
+
+        // Handle PiP mode changes
+        if (viewModel.currentScreen.value == Screen.Display) {
             ProgressEvents.onNext(ProgressEvents.Events.StartDisplay)
         }
-
-        if (isInPictureInPictureMode) {} else {}
     }
 
     override fun onRequestPermissionsResult(
-            requestCode: Int,
-            permissions: Array<out String>,
-            grantResults: IntArray
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        // Forward results to EasyPermissions
         EasyPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults, this)
     }
 
@@ -201,8 +183,6 @@ class MainActivity :
             perms += Manifest.permission.NEARBY_WIFI_DEVICES
         }
         if (!EasyPermissions.hasPermissions(this, *perms)) {
-            // Do not have permissions, request them now
-            // EasyPermissions.requestPermissions()
             EasyPermissions.requestPermissions(
                     this,
                     getString(R.string.camera_and_location_rationale),
@@ -216,7 +196,8 @@ class MainActivity :
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.insetsController?.let {
                 it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                window.navigationBarColor = getColor(R.color.colorPrimaryDark)
+                window.navigationBarColor = android.graphics.Color.TRANSPARENT
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
                 it.hide(WindowInsets.Type.systemBars())
             }
         } else {
@@ -233,40 +214,59 @@ class MainActivity :
         }
     }
 
-    override fun onRationaleDenied(requestCode: Int) {
-        // Not yet
-    }
+    override fun onRationaleDenied(requestCode: Int) {}
 
-    override fun onRationaleAccepted(requestCode: Int) {
-        // Not yet
-    }
+    override fun onRationaleAccepted(requestCode: Int) {}
 
-    private fun createAppEventsSubscription(): Disposable =
-            ProgressEvents.connectionEventFlowable
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .doOnNext {
-                        when (it) {
-                            ProgressEvents.Events.DisplayDisconnected -> {
-                                ProgressEvents.onNext(
-                                        ProgressEvents.Events.ShowWaitingForConnectionScreen
-                                )
-                                reconnect()
-                            }
-                            ProgressEvents.Events.CameraDisconnected -> {
-                                ProgressEvents.onNext(
-                                        ProgressEvents.Events.ShowWaitingForConnectionScreen
-                                )
-                                reconnect()
+    private fun createAppEventsSubscription(): Disposable {
+        val disposable =
+                ProgressEvents.connectionEventFlowable
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .doOnNext { event ->
+                            Timber.d("MainActivity received event: $event")
+                            when (event) {
+                                ProgressEvents.Events.DisplayDisconnected -> {
+                                    viewModel.showWaitingScreen()
+                                    reconnect()
+                                }
+                                ProgressEvents.Events.CameraDisconnected -> {
+                                    viewModel.showWaitingScreen()
+                                    reconnect()
+                                }
+                                ProgressEvents.Events.ConnectionDisplaySuccessful -> {
+                                    viewModel.showMainScreen()
+                                }
+                                ProgressEvents.Events.ConnectionCameraSuccessful -> {
+                                    viewModel.showMainScreen()
+                                }
+                                ProgressEvents.Events.ShowWaitingForConnectionScreen -> {
+                                    viewModel.showWaitingScreen()
+                                }
+                                ProgressEvents.Events.ShowMainScreen -> {
+                                    viewModel.showMainScreen()
+                                }
+                                ProgressEvents.Events.StartCamera -> {
+                                    viewModel.showCameraScreen()
+                                }
+                                ProgressEvents.Events.StartDisplay -> {
+                                    viewModel.showDisplayScreen()
+                                }
+                                else -> {}
                             }
                         }
-                    }
-                    .subscribe({}, { throwable -> Timber.d("Got error on subscribe: $throwable") })
+                        .subscribe(
+                                {},
+                                { throwable -> Timber.e("Got error on subscribe: $throwable") }
+                        )
+
+        disposables.add(disposable)
+        return disposable
+    }
 
     companion object {
         private const val RC_ALL_PERMISSIONS = 123
         private var instance: MainActivity? = null
 
-        // Make context available from anywhere in the code (not yet used).
         fun applicationContext(): Context {
             return instance!!.applicationContext
         }
