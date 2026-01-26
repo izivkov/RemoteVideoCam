@@ -11,7 +11,7 @@ import org.avmedia.remotevideocam.display.customcomponents.VideoViewWebRTC
 object Display : Fragment() {
     private lateinit var connection: ILocalConnection
 
-    fun init(context: Context, videoView: VideoViewWebRTC, motionDetectionButton: ImageButton) {
+    fun init(context: Context, videoView: VideoViewWebRTC) {
         connection =
                 org.avmedia.remotevideocam.camera.ConnectionStrategy.getDisplayConnection(context)
 

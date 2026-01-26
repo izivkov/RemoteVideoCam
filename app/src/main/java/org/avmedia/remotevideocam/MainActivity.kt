@@ -140,7 +140,7 @@ class MainActivity :
                             Display.disconnect(this)
                             Camera.disconnect()
 
-                            Display.init(this, binding.videoView, binding.motionDetectionButton)
+                            Display.init(this, binding.videoView)
                             Camera.init(this, binding.videoWindow)
 
                             if (!Camera.isConnected()) {
