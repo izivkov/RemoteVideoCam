@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() { // Removed EasyPermissions interfaces
             val allGranted = permissions.entries.all { it.value }
             if (allGranted) {
                 Timber.d("All permissions granted")
+                reconnect()
             } else {
                 Timber.w("Not all permissions were granted.")
                 // Optionally, show a message to the user
@@ -114,18 +115,6 @@ class MainActivity : ComponentActivity() { // Removed EasyPermissions interfaces
                 }
         requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
     }
-
-    // ... (rest of your file is mostly the same)
-
-    // DELETE THE FOLLOWING METHODS:
-    // - onRequestPermissionsResult
-    // - onPermissionsDenied
-    // - onPermissionsGranted
-    // - onRationaleDenied
-    // - onRationaleAccepted
-    // - getPermission
-
-    // ... (keep onUserLeaveHint, reconnect, onPictureInPictureModeChanged, etc.)
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()

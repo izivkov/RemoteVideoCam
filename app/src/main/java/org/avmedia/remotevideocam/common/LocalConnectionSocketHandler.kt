@@ -18,6 +18,7 @@ class LocalConnectionSocketHandler(
         private val onDisconnected: () -> Unit
 ) {
     private var client: Socket? = null
+    private var serverSocket: ServerSocket? = null
     private var stopped = false
 
     fun isConnected(): Boolean {
@@ -28,29 +29,45 @@ class LocalConnectionSocketHandler(
 
     fun connect(host: String?, port: Int): ClientInfo? {
         try {
-            client = Socket(host, port)
+            Timber.d("Connecting to $host:$port...")
+            client = Socket()
+            client!!.connect(java.net.InetSocketAddress(host, port), 5000) // 5s timeout
+            Timber.d("Connected to $host:$port")
             return createClientInfo(client!!)
         } catch (e: Exception) {
-            Timber.e("Connect failed: ${e.message}")
+            Timber.e("Connect to $host:$port failed: ${e.message}")
             return null
         }
     }
 
     fun waitForConnection(port: Int): ClientInfo? {
-        var serverSocket: ServerSocket? = null
         try {
-            serverSocket = ServerSocket(port)
-            serverSocket.reuseAddress = true
-            Timber.d("Waiting for connection on port $port...")
-            client = serverSocket.accept()
+            serverSocket = ServerSocket()
+            serverSocket?.reuseAddress = true
+            // Force binding to IPv4 to avoid the "::" issue
+            serverSocket?.bind(
+                    java.net.InetSocketAddress(java.net.InetAddress.getByName("0.0.0.0"), port)
+            )
+
+            Timber.i("ServerSocket listening on ${serverSocket?.localSocketAddress} (port $port)")
+            Timber.i("Waiting for connection...")
+
+            client = serverSocket?.accept()
+            Timber.i("Accepted connection from ${client?.remoteSocketAddress}")
+
             return createClientInfo(client!!)
         } catch (e: Exception) {
+            if (!stopped) {
             Timber.e("Wait for connection failed: ${e.message}")
+            }
             return null
         } finally {
             try {
                 serverSocket?.close()
-            } catch (e: Exception) {}
+                serverSocket = null
+            } catch (e: Exception) {
+                // Ignore
+            }
         }
     }
 
@@ -127,6 +144,10 @@ class LocalConnectionSocketHandler(
 
     fun close() {
         try {
+            stopped = true
+            serverSocket?.close()
+            serverSocket = null
+
             if (client == null || client!!.isClosed) {
                 return
             }

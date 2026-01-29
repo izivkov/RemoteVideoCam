@@ -205,9 +205,10 @@ fun WaitingScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                         ) {
-                                AnimatedEntrance(delay = 600) {
-                                        SettingsButton(onClick = onSettingsClick)
-                                }
+                                // Hide the setting menu for now
+                                // AnimatedEntrance(delay = 600) {
+                                //      SettingsButton(onClick = onSettingsClick)
+                                // }
                                 AnimatedEntrance(delay = 700) { ExitButton(onClick = onExitClick) }
                         }
                 }
