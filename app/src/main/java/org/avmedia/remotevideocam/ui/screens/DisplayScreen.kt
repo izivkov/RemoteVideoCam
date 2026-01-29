@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import org.avmedia.remotevideocam.display.customcomponents.VideoViewWebRTC
@@ -33,85 +34,95 @@ fun DisplayScreen(
         isMirrored: Boolean = false,
         videoViewWebRTC: VideoViewWebRTC? = null
 ) {
-    Box(modifier = modifier.fillMaxSize().background(Color.Black)) {
-        // WebRTC Video View
-        if (videoViewWebRTC != null) {
-            AndroidView(
-                    factory = { videoViewWebRTC },
-                    modifier =
-                            Modifier.fillMaxSize().graphicsLayer {
-                                scaleX = if (isMirrored) -1f else 1f
-                            },
-                    update = { view ->
-                        view.layoutParams =
-                                ViewGroup.LayoutParams(
-                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                        ViewGroup.LayoutParams.MATCH_PARENT
-                                )
-                    }
-            )
-        } else {
-            // Placeholder for preview mode
-            Box(
-                    modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A1A)),
-                    contentAlignment = Alignment.Center
-            ) {
-                Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Icon(
-                            imageVector = Icons.Default.Monitor,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = Color.White.copy(alpha = 0.3f)
-                    )
-                    Text(
-                            text = "Waiting for video...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.5f)
-                    )
+        Box(modifier = modifier.fillMaxSize().background(Color.Black)) {
+                // WebRTC Video View
+                if (videoViewWebRTC != null) {
+                        AndroidView(
+                                factory = { videoViewWebRTC },
+                                modifier =
+                                        Modifier.fillMaxSize().graphicsLayer {
+                                                scaleX = if (isMirrored) -1f else 1f
+                                        },
+                                update = { view ->
+                                        view.layoutParams =
+                                                ViewGroup.LayoutParams(
+                                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                                        ViewGroup.LayoutParams.MATCH_PARENT
+                                                )
+                                }
+                        )
+                } else {
+                        Box(
+                                modifier = Modifier.fillMaxSize().background(Color(0xFF0A0A0A)),
+                                contentAlignment = Alignment.Center
+                        ) {
+                                Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                        Icon(
+                                                imageVector = Icons.Default.Monitor,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(80.dp),
+                                                tint = Color.White.copy(alpha = 0.1f)
+                                        )
+                                        Text(
+                                                text = "Establishing connection...",
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                color = Color.White.copy(alpha = 0.3f)
+                                        )
+                                        LoadingDots(
+                                                color =
+                                                        MaterialTheme.colorScheme.primary.copy(
+                                                                alpha = 0.3f
+                                                        )
+                                        )
+                                }
+                        }
                 }
-            }
+
+                // Top UI Overlay
+                Column(modifier = Modifier.fillMaxSize().statusBarsPadding().padding(16.dp)) {
+                        Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top
+                        ) {
+                                AnimatedEntrance(delay = 200) {
+                                        AnimatedBackButton(onClick = onBackClick)
+                                }
+
+                                AnimatedEntrance(delay = 400) {
+                                        ConnectionStatusIndicator(
+                                                isConnected = videoViewWebRTC != null
+                                        )
+                                }
+                        }
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        // Bottom UI Overlay
+                        Row(
+                                modifier =
+                                        Modifier.fillMaxWidth()
+                                                .navigationBarsPadding()
+                                                .padding(bottom = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Bottom
+                        ) {
+                                AnimatedEntrance(delay = 600) {
+                                        DisplayControls(
+                                                isMuted = isMuted,
+                                                isMirrored = isMirrored,
+                                                onToggleSound = onToggleSound,
+                                                onToggleMirror = onToggleMirror
+                                        )
+                                }
+
+                                AnimatedEntrance(delay = 800) { DisplayModeIndicator() }
+                        }
+                }
         }
-
-        // Top bar with back button
-        Row(
-                modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-        ) {
-            AnimatedBackButton(onClick = onBackClick)
-
-            Spacer(modifier = Modifier.weight(1f))
-        }
-
-        // Connection status indicator - top right
-        ConnectionStatusIndicator(
-                isConnected = true,
-                modifier =
-                        Modifier.align(Alignment.TopEnd)
-                                .statusBarsPadding()
-                                .padding(16.dp)
-                                .padding(top = 56.dp)
-        )
-
-        // Display mode indicator - bottom right
-        DisplayModeIndicator(
-                modifier =
-                        Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(16.dp)
-        )
-
-        // Bottom controls
-        DisplayControls(
-                isMuted = isMuted,
-                isMirrored = isMirrored,
-                onToggleSound = onToggleSound,
-                onToggleMirror = onToggleMirror,
-                modifier =
-                        Modifier.align(Alignment.BottomStart).navigationBarsPadding().padding(16.dp)
-        )
-    }
 }
 
 @Composable
@@ -122,112 +133,112 @@ private fun DisplayControls(
         onToggleMirror: () -> Unit,
         modifier: Modifier = Modifier
 ) {
-    val mirrorRotation by
-            animateFloatAsState(
-                    targetValue = if (isMirrored) 180f else 0f,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                    label = "mirror_rotation"
-            )
+        Row(
+                modifier =
+                        modifier.clip(RoundedCornerShape(32.dp))
+                                .background(Color.Black.copy(alpha = 0.4f))
+                                .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+                GlassIconButton(
+                        onClick = {
+                                val newMuted = !isMuted
+                                onToggleSound(newMuted)
+                                ProgressEvents.onNext(
+                                        if (newMuted) ProgressEvents.Events.Mute
+                                        else ProgressEvents.Events.Unmute
+                                )
+                        },
+                        icon = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                        contentDescription = if (isMuted) "Unmute" else "Mute",
+                        size = 56.dp,
+                        iconSize = 28.dp,
+                        isActive = !isMuted
+                )
 
-    Column(
-            modifier =
-                    modifier.clip(RoundedCornerShape(28.dp))
-                            .background(Color.Black.copy(alpha = 0.5f))
-                            .padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Sound toggle button
-        GlassIconButton(
-                onClick = {
-                    val newMuted = !isMuted
-                    onToggleSound(newMuted)
-                    if (newMuted) {
-                        ProgressEvents.onNext(ProgressEvents.Events.Mute)
-                    } else {
-                        ProgressEvents.onNext(ProgressEvents.Events.Unmute)
-                    }
-                },
-                icon = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
-                contentDescription = if (isMuted) "Unmute" else "Mute",
-                size = 50.dp,
-                iconSize = 26.dp,
-                isActive = !isMuted
-        )
-
-        // Mirror toggle button
-        GlassIconButton(
-                onClick = {
-                    ProgressEvents.onNext(ProgressEvents.Events.ToggleMirror)
-                    onToggleMirror()
-                },
-                icon = Icons.Default.Flip,
-                contentDescription = "Toggle mirror",
-                size = 50.dp,
-                iconSize = 26.dp,
-                isActive = isMirrored
-        )
-    }
+                GlassIconButton(
+                        onClick = {
+                                ProgressEvents.onNext(ProgressEvents.Events.ToggleMirror)
+                                onToggleMirror()
+                        },
+                        icon = Icons.Default.Flip,
+                        contentDescription = "Toggle mirror",
+                        size = 56.dp,
+                        iconSize = 28.dp,
+                        isActive = isMirrored
+                )
+        }
 }
 
 @Composable
 private fun DisplayModeIndicator(modifier: Modifier = Modifier) {
-    Row(
-            modifier =
-                    modifier.clip(RoundedCornerShape(20.dp))
-                            .background(Color.Black.copy(alpha = 0.5f))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Icon(
-                imageVector = Icons.Default.Monitor,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.primary
-        )
-        Text(text = "DISPLAY", style = MaterialTheme.typography.labelMedium, color = Color.White)
-    }
+        Row(
+                modifier =
+                        modifier.clip(RoundedCornerShape(24.dp))
+                                .background(Color.Black.copy(alpha = 0.4f))
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+                Icon(
+                        imageVector = Icons.Default.Monitor,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.secondary
+                )
+                Text(
+                        text = "REMOTE VIEW",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                )
+        }
 }
 
 @Composable
 private fun ConnectionStatusIndicator(isConnected: Boolean, modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "connection")
-    val pulseScale by
-            infiniteTransition.animateFloat(
-                    initialValue = 1f,
-                    targetValue = 1.2f,
-                    animationSpec =
-                            infiniteRepeatable(
-                                    animation = tween(800),
-                                    repeatMode = RepeatMode.Reverse
-                            ),
-                    label = "pulse"
-            )
+        val infiniteTransition = rememberInfiniteTransition(label = "connection")
+        val pulseScale by
+                infiniteTransition.animateFloat(
+                        initialValue = 1f,
+                        targetValue = 1.25f,
+                        animationSpec =
+                                infiniteRepeatable(
+                                        animation = tween(1000, easing = FastOutSlowInEasing),
+                                        repeatMode = RepeatMode.Reverse
+                                ),
+                        label = "pulse"
+                )
 
-    Row(
-            modifier =
-                    modifier.clip(RoundedCornerShape(16.dp))
-                            .background(Color.Black.copy(alpha = 0.5f))
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Box(
+        Row(
                 modifier =
-                        Modifier.size(10.dp)
-                                .graphicsLayer {
-                                    scaleX = if (isConnected) pulseScale else 1f
-                                    scaleY = if (isConnected) pulseScale else 1f
-                                }
-                                .background(
-                                        color = if (isConnected) ConnectedGreen else Color.Red,
-                                        shape = androidx.compose.foundation.shape.CircleShape
-                                )
-        )
-        Text(
-                text = if (isConnected) "CONNECTED" else "DISCONNECTED",
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White
-        )
-    }
+                        modifier.clip(RoundedCornerShape(20.dp))
+                                .background(Color.Black.copy(alpha = 0.4f))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+                Box(
+                        modifier =
+                                Modifier.size(8.dp)
+                                        .graphicsLayer {
+                                                scaleX = if (isConnected) pulseScale else 1f
+                                                scaleY = if (isConnected) pulseScale else 1f
+                                        }
+                                        .background(
+                                                color =
+                                                        if (isConnected) ConnectedGreen
+                                                        else Color.Red,
+                                                shape =
+                                                        androidx.compose.foundation.shape
+                                                                .CircleShape
+                                        )
+                )
+                Text(
+                        text = if (isConnected) "LIVE" else "OFFLINE",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                )
+        }
 }

@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlin.system.exitProcess
 import org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
@@ -48,17 +49,32 @@ fun RemoteVideoCamApp(
                 AnimatedContent(
                         targetState = currentScreen,
                         transitionSpec = {
+                            val animationSpec =
+                                    spring<Float>(
+                                            dampingRatio = Spring.DampingRatioLowBouncy,
+                                            stiffness = Spring.StiffnessLow
+                                    )
+                            val intAnimationSpec =
+                                    spring<IntOffset>(
+                                            dampingRatio = Spring.DampingRatioLowBouncy,
+                                            stiffness = Spring.StiffnessLow
+                                    )
+
                             when {
                                 targetState == Screen.Camera || targetState == Screen.Display -> {
-                                    (slideInHorizontally { it } + fadeIn()) togetherWith
-                                            (slideOutHorizontally { -it } + fadeOut())
+                                    (slideInHorizontally(intAnimationSpec) { it } +
+                                            fadeIn(animationSpec)) togetherWith
+                                            (slideOutHorizontally(intAnimationSpec) { -it } +
+                                                    fadeOut(animationSpec))
                                 }
                                 initialState == Screen.Camera || initialState == Screen.Display -> {
-                                    (slideInHorizontally { -it } + fadeIn()) togetherWith
-                                            (slideOutHorizontally { it } + fadeOut())
+                                    (slideInHorizontally(intAnimationSpec) { -it } +
+                                            fadeIn(animationSpec)) togetherWith
+                                            (slideOutHorizontally(intAnimationSpec) { it } +
+                                                    fadeOut(animationSpec))
                                 }
                                 else -> {
-                                    fadeIn(tween(300)) togetherWith fadeOut(tween(300))
+                                    fadeIn(tween(500)) togetherWith fadeOut(tween(500))
                                 }
                             }
                         },

@@ -2,17 +2,9 @@ package org.avmedia.remotevideocam.camera
 
 import android.graphics.Matrix
 import android.opengl.GLES20
-import android.os.Handler
 import androidx.tracing.trace
-import org.opencv.core.MatOfPoint
 import org.webrtc.GlRectDrawer
-import org.webrtc.GlTextureFrameBuffer
-import org.webrtc.GlUtil
-import org.webrtc.RendererCommon
-import org.webrtc.TextureBufferImpl
 import org.webrtc.VideoFrame
-import org.webrtc.VideoFrame.TextureBuffer
-import org.webrtc.VideoFrameDrawer
 import org.webrtc.YuvConverter
 import timber.log.Timber
 
@@ -30,7 +22,7 @@ private const val TAG = "MotionProcessor"
 /**
  * Used to analyze video frames for motion detection.
  */
-class MotionProcessor : VideoProcessorImpl.FrameProcessor {
+class VideoProcessor : VideoProcessorImpl.FrameProcessor {
 
     /**
      *  Notify the detection result.

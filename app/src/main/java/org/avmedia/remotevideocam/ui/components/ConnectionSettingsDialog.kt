@@ -3,8 +3,8 @@ package org.avmedia.remotevideocam.ui.components
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,7 +20,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.avmedia.remotevideocam.R
@@ -35,40 +34,41 @@ fun ConnectionSettingsDialog(
         onConnectionTypeSelected: (ConnectionStrategy.ConnectionType) -> Unit,
         onDismiss: () -> Unit
 ) {
-    if (isVisible) {
-        ModalBottomSheet(
-                onDismissRequest = onDismiss,
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                dragHandle = {
-                    Column(
-                            modifier = Modifier.padding(top = 16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
+        if (isVisible) {
+                ModalBottomSheet(
+                        onDismissRequest = onDismiss,
+                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 8.dp,
+                        dragHandle = {
+                                Box(
+                                        modifier =
+                                                Modifier.padding(vertical = 12.dp)
+                                                        .width(48.dp)
+                                                        .height(6.dp)
+                                                        .clip(CircleShape)
+                                                        .background(
+                                                                MaterialTheme.colorScheme
+                                                                        .onSurfaceVariant.copy(
+                                                                        alpha = 0.2f
+                                                                )
+                                                        )
+                                )
+                        }
+                ) {
+                        ConnectionSettingsContent(
+                                currentConnectionType = currentConnectionType,
+                                onConnectionTypeSelected = { type ->
+                                        onConnectionTypeSelected(type)
+                                        onDismiss()
+                                },
                                 modifier =
-                                        Modifier.width(40.dp)
-                                                .height(4.dp)
-                                                .clip(RoundedCornerShape(2.dp))
-                                                .background(
-                                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                                                .copy(alpha = 0.4f)
-                                                )
+                                        Modifier.fillMaxWidth()
+                                                .padding(horizontal = 24.dp)
+                                                .padding(bottom = 40.dp)
                         )
-                    }
                 }
-        ) {
-            ConnectionSettingsContent(
-                    currentConnectionType = currentConnectionType,
-                    onConnectionTypeSelected = { type ->
-                        onConnectionTypeSelected(type)
-                        onDismiss()
-                    },
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
-            )
         }
-    }
 }
 
 @Composable
@@ -77,165 +77,175 @@ private fun ConnectionSettingsContent(
         onConnectionTypeSelected: (ConnectionStrategy.ConnectionType) -> Unit,
         modifier: Modifier = Modifier
 ) {
-    Column(
-            modifier = modifier.selectableGroup(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Header
-        Text(
-                text = stringResource(R.string.connection_type),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-        )
+        Column(
+                modifier = modifier.selectableGroup(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+                ModernHeader(
+                        title = stringResource(R.string.connection_type),
+                        subtitle = "Choose how devices will find each other",
+                        icon = Icons.Default.SettingsEthernet
+                )
 
-        Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-        // Connection options
-        ConnectionOption(
-                title = stringResource(R.string.connection_auto),
-                description = "Automatically select the best connection",
-                icon = Icons.Default.AutoAwesome,
-                isSelected = currentConnectionType == ConnectionStrategy.ConnectionType.AUTO,
-                onClick = { onConnectionTypeSelected(ConnectionStrategy.ConnectionType.AUTO) }
-        )
+                ConnectionOptionCard(
+                        title = stringResource(R.string.connection_auto),
+                        description = "Intelligent selection based on network conditions",
+                        icon = Icons.Default.AutoAwesome,
+                        isSelected =
+                                currentConnectionType == ConnectionStrategy.ConnectionType.AUTO,
+                        onClick = {
+                                onConnectionTypeSelected(ConnectionStrategy.ConnectionType.AUTO)
+                        }
+                )
 
-        ConnectionOption(
-                title = stringResource(R.string.connection_network),
-                description = "Connect via local WiFi network",
-                icon = Icons.Default.Wifi,
-                isSelected = currentConnectionType == ConnectionStrategy.ConnectionType.NETWORK,
-                onClick = { onConnectionTypeSelected(ConnectionStrategy.ConnectionType.NETWORK) }
-        )
+                ConnectionOptionCard(
+                        title = stringResource(R.string.connection_network),
+                        description = "Standard connection via your local WiFi network",
+                        icon = Icons.Default.Wifi,
+                        isSelected =
+                                currentConnectionType == ConnectionStrategy.ConnectionType.NETWORK,
+                        onClick = {
+                                onConnectionTypeSelected(ConnectionStrategy.ConnectionType.NETWORK)
+                        }
+                )
 
-        ConnectionOption(
-                title = stringResource(R.string.connection_wifi_direct),
-                description = "Direct device-to-device connection",
-                icon = Icons.Default.WifiTethering,
-                isSelected = currentConnectionType == ConnectionStrategy.ConnectionType.WIFI_DIRECT,
-                onClick = {
-                    onConnectionTypeSelected(ConnectionStrategy.ConnectionType.WIFI_DIRECT)
-                }
-        )
+                ConnectionOptionCard(
+                        title = stringResource(R.string.connection_wifi_direct),
+                        description = "Direct peer-to-peer connection without a router",
+                        icon = Icons.Default.WifiTethering,
+                        isSelected =
+                                currentConnectionType ==
+                                        ConnectionStrategy.ConnectionType.WIFI_DIRECT,
+                        onClick = {
+                                onConnectionTypeSelected(
+                                        ConnectionStrategy.ConnectionType.WIFI_DIRECT
+                                )
+                        }
+                )
 
-        ConnectionOption(
-                title = stringResource(R.string.connection_wifi_aware),
-                description = "Nearby device discovery (Android 8+)",
-                icon = Icons.Default.NetworkWifi,
-                isSelected = currentConnectionType == ConnectionStrategy.ConnectionType.WIFI_AWARE,
-                onClick = { onConnectionTypeSelected(ConnectionStrategy.ConnectionType.WIFI_AWARE) }
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-    }
+                ConnectionOptionCard(
+                        title = stringResource(R.string.connection_wifi_aware),
+                        description = "Advanced nearby discovery for Android 8+ devices",
+                        icon = Icons.Default.NetworkWifi,
+                        isSelected =
+                                currentConnectionType ==
+                                        ConnectionStrategy.ConnectionType.WIFI_AWARE,
+                        onClick = {
+                                onConnectionTypeSelected(
+                                        ConnectionStrategy.ConnectionType.WIFI_AWARE
+                                )
+                        }
+                )
+        }
 }
 
 @Composable
-private fun ConnectionOption(
+private fun ConnectionOptionCard(
         title: String,
         description: String,
         icon: ImageVector,
         isSelected: Boolean,
         onClick: () -> Unit
 ) {
-    val haptic = LocalHapticFeedback.current
-    val backgroundColor =
-            if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            }
+        val haptic = LocalHapticFeedback.current
 
-    val borderColor =
-            if (isSelected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                Color.Transparent
-            }
-
-    val contentColor =
-            if (isSelected) {
-                MaterialTheme.colorScheme.onPrimaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            }
-
-    Row(
-            modifier =
-                    Modifier.fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(backgroundColor)
-                            .border(
-                                    width = 2.dp,
-                                    color = borderColor,
-                                    shape = RoundedCornerShape(16.dp)
-                            )
-                            .selectable(
-                                    selected = isSelected,
-                                    onClick = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onClick()
-                                    },
-                                    role = Role.RadioButton
-                            )
-                            .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Icon
-        Box(
+        Surface(
                 modifier =
-                        Modifier.size(48.dp)
-                                .clip(CircleShape)
-                                .background(
-                                        if (isSelected) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.surfaceVariant
+                        Modifier.fillMaxWidth()
+                                .clip(RoundedCornerShape(24.dp))
+                                .clickable(
+                                        onClick = {
+                                                haptic.performHapticFeedback(
+                                                        HapticFeedbackType.LongPress
+                                                )
+                                                onClick()
                                         }
                                 ),
-                contentAlignment = Alignment.Center
+                shape = RoundedCornerShape(24.dp),
+                color =
+                        if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                        } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        },
+                border =
+                        if (isSelected) {
+                                borderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                        } else {
+                                null
+                        }
         ) {
-            Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint =
-                            if (isSelected) {
-                                MaterialTheme.colorScheme.onPrimary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-            )
-        }
+                Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                        Box(
+                                modifier =
+                                        Modifier.size(56.dp)
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(
+                                                        if (isSelected) {
+                                                                MaterialTheme.colorScheme.primary
+                                                        } else {
+                                                                MaterialTheme.colorScheme
+                                                                        .surfaceVariant
+                                                        }
+                                                ),
+                                contentAlignment = Alignment.Center
+                        ) {
+                                Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(28.dp),
+                                        tint =
+                                                if (isSelected) {
+                                                        MaterialTheme.colorScheme.onPrimary
+                                                } else {
+                                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                                }
+                                )
+                        }
 
-        // Text content
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = contentColor
-            )
-            Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = contentColor.copy(alpha = 0.7f)
-            )
-        }
+                        Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                        text = title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color =
+                                                if (isSelected) {
+                                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                                } else {
+                                                        MaterialTheme.colorScheme.onSurface
+                                                }
+                                )
+                                Text(
+                                        text = description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color =
+                                                if (isSelected) {
+                                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                                                .copy(alpha = 0.8f)
+                                                } else {
+                                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                                }
+                                )
+                        }
 
-        // Radio indicator
-        RadioButton(
-                selected = isSelected,
-                onClick = null,
-                colors =
-                        RadioButtonDefaults.colors(
-                                selectedColor = MaterialTheme.colorScheme.primary,
-                                unselectedColor =
-                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                                alpha = 0.6f
-                                        )
-                        )
-        )
-    }
+                        if (isSelected) {
+                                Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "Selected",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                )
+                        }
+                }
+        }
 }
+
+@Composable
+private fun borderStroke(width: androidx.compose.ui.unit.Dp, color: Color) =
+        androidx.compose.foundation.BorderStroke(width, color)

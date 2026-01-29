@@ -17,12 +17,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
-//        ndk {
-//            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
-//        }
-
         ndk {
-            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86_64"))
+            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
         }
     }
 
@@ -74,7 +70,8 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    
+    implementation(libs.androidx.ui.text)
+
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 

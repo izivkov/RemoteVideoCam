@@ -25,8 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.avmedia.remotevideocam.R
-import org.avmedia.remotevideocam.ui.components.ExitButton
-import org.avmedia.remotevideocam.ui.components.GradientBackground
+import org.avmedia.remotevideocam.ui.components.*
 
 /** Main selection screen with Camera and Display options */
 @Composable
@@ -36,189 +35,207 @@ fun MainScreen(
         onExitClick: () -> Unit,
         modifier: Modifier = Modifier
 ) {
-    GradientBackground(modifier = modifier.fillMaxSize()) {
-        Column(
-                modifier = Modifier.fillMaxSize().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Camera panel - top half
-            ModeSelectionCard(
-                    title = stringResource(R.string.camera),
-                    subtitle = "Capture & stream video",
-                    icon = Icons.Default.Videocam,
-                    gradientColors =
-                            listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.tertiary
-                            ),
-                    onClick = onCameraClick,
-                    modifier = Modifier.weight(1f).fillMaxWidth()
-            )
+        GradientBackground(modifier = modifier.fillMaxSize()) {
+                Column(
+                        modifier =
+                                Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()
+                ) {
+                        AnimatedEntrance(delay = 100) {
+                                ModernHeader(
+                                        title = "Remote Cam",
+                                        subtitle = "High-quality remote video streaming",
+                                        icon = Icons.Default.Camera
+                                )
+                        }
 
-            // Display panel - bottom half
-            ModeSelectionCard(
-                    title = stringResource(R.string.display),
-                    subtitle = "View remote camera feed",
-                    icon = Icons.Default.Monitor,
-                    gradientColors =
-                            listOf(
-                                    MaterialTheme.colorScheme.secondary,
-                                    MaterialTheme.colorScheme.primary
-                            ),
-                    onClick = onDisplayClick,
-                    modifier = Modifier.weight(1f).fillMaxWidth()
-            )
+                        Column(
+                                modifier =
+                                        Modifier.fillMaxSize()
+                                                .padding(horizontal = 24.dp, vertical = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(24.dp)
+                        ) {
+                                AnimatedEntrance(delay = 300) {
+                                        ModernActionCard(
+                                                title = stringResource(R.string.camera),
+                                                subtitle =
+                                                        "Stream your device's camera to another device securely",
+                                                icon = Icons.Default.Videocam,
+                                                primaryColor = MaterialTheme.colorScheme.primary,
+                                                secondaryColor = MaterialTheme.colorScheme.tertiary,
+                                                onClick = onCameraClick
+                                        )
+                                }
+
+                                AnimatedEntrance(delay = 500) {
+                                        ModernActionCard(
+                                                title = stringResource(R.string.display),
+                                                subtitle =
+                                                        "View and record feeds from remote devices in real-time",
+                                                icon = Icons.Default.Monitor,
+                                                primaryColor = MaterialTheme.colorScheme.secondary,
+                                                secondaryColor = MaterialTheme.colorScheme.primary,
+                                                onClick = onDisplayClick
+                                        )
+                                }
+
+                                Spacer(modifier = Modifier.weight(1f))
+
+                                AnimatedEntrance(delay = 700) {
+                                        Box(
+                                                modifier =
+                                                        Modifier.fillMaxWidth()
+                                                                .padding(bottom = 16.dp),
+                                                contentAlignment = Alignment.Center
+                                        ) {
+                                                ExitButton(
+                                                        onClick = onExitClick,
+                                                        modifier = Modifier.scale(1.2f)
+                                                )
+                                        }
+                                }
+                        }
+                }
         }
-
-        // Exit button - bottom right corner
-        ExitButton(
-                onClick = onExitClick,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp)
-        )
-    }
 }
 
 @Composable
-private fun ModeSelectionCard(
+private fun ModernActionCard(
         title: String,
         subtitle: String,
         icon: ImageVector,
-        gradientColors: List<Color>,
+        primaryColor: Color,
+        secondaryColor: Color,
         onClick: () -> Unit,
         modifier: Modifier = Modifier
 ) {
-    val haptic = LocalHapticFeedback.current
-    var isPressed by remember { mutableStateOf(false) }
+        val haptic = LocalHapticFeedback.current
+        var isPressed by remember { mutableStateOf(false) }
 
-    val scale by
-            animateFloatAsState(
-                    targetValue = if (isPressed) 0.97f else 1f,
-                    animationSpec =
-                            spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessLow
-                            ),
-                    label = "card_scale"
-            )
+        val ICON_ALPHA_LOW = 0.2f
+        val ICON_SCALE_FACTOR = 1.5f
 
-    val infiniteTransition = rememberInfiniteTransition(label = "icon_animation")
-    val iconScale by
-            infiniteTransition.animateFloat(
-                    initialValue = 1f,
-                    targetValue = 1.05f,
-                    animationSpec =
-                            infiniteRepeatable(
-                                    animation = tween(1500, easing = FastOutSlowInEasing),
-                                    repeatMode = RepeatMode.Reverse
-                            ),
-                    label = "icon_scale"
-            )
+        val scale by
+                animateFloatAsState(
+                        targetValue = if (isPressed) 0.96f else 1f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                        label = "card_scale"
+                )
 
-    val shimmerProgress by
-            infiniteTransition.animateFloat(
-                    initialValue = -1f,
-                    targetValue = 2f,
-                    animationSpec =
-                            infiniteRepeatable(
-                                    animation = tween(2500, easing = LinearEasing),
-                                    repeatMode = RepeatMode.Restart
-                            ),
-                    label = "shimmer"
-            )
+        val elevation by
+                animateDpAsState(
+                        targetValue = if (isPressed) 2.dp else 8.dp,
+                        label = "card_elevation"
+                )
 
-    Box(
-            modifier =
-                    modifier.scale(scale)
-                            .clip(RoundedCornerShape(32.dp))
-                            .background(
-                                    brush =
-                                            Brush.linearGradient(
-                                                    colors =
-                                                            gradientColors.map {
-                                                                it.copy(alpha = 0.85f)
-                                                            }
-                                            )
-                            )
-                            .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = true, color = Color.White)
-                            ) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onClick()
-                            }
-    ) {
-        // Shimmer overlay
-        Box(
+        Surface(
                 modifier =
-                        Modifier.fillMaxSize()
-                                .graphicsLayer { translationX = shimmerProgress * 500f }
-                                .background(
-                                        brush =
-                                                Brush.horizontalGradient(
-                                                        colors =
-                                                                listOf(
-                                                                        Color.Transparent,
-                                                                        Color.White.copy(
-                                                                                alpha = 0.15f
-                                                                        ),
-                                                                        Color.Transparent
-                                                                ),
-                                                        startX = 0f,
-                                                        endX = 200f
+                        modifier.fillMaxWidth()
+                                .scale(scale)
+                                .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = {
+                                                haptic.performHapticFeedback(
+                                                        HapticFeedbackType.LongPress
+                                                )
+                                                onClick()
+                                        }
+                                ),
+                shape = RoundedCornerShape(32.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = elevation,
+                shadowElevation = elevation
+        ) {
+                Box(
+                        modifier =
+                                Modifier.fillMaxWidth()
+                                        .background(
+                                                brush =
+                                                        Brush.linearGradient(
+                                                                colors =
+                                                                        listOf(
+                                                                                primaryColor.copy(
+                                                                                        alpha =
+                                                                                                0.15f
+                                                                                ),
+                                                                                secondaryColor.copy(
+                                                                                        alpha =
+                                                                                                0.05f
+                                                                                )
+                                                                        )
+                                                        )
+                                        )
+                                        .padding(24.dp)
+                ) {
+                        Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(20.dp)
+                        ) {
+                                // Icon with layered background
+                                Box(
+                                        modifier =
+                                                Modifier.size(80.dp)
+                                                        .clip(RoundedCornerShape(24.dp))
+                                                        .background(
+                                                                brush =
+                                                                        Brush.linearGradient(
+                                                                                colors =
+                                                                                        listOf(
+                                                                                                primaryColor,
+                                                                                                secondaryColor
+                                                                                        )
+                                                                        )
+                                                        ),
+                                        contentAlignment = Alignment.Center
+                                ) {
+                                        // Subtle background icon
+                                        Icon(
+                                                imageVector = icon,
+                                                contentDescription = null,
+                                                modifier = Modifier
+                                                        .size(60.dp)
+                                                        .graphicsLayer {
+                                                                this.alpha = ICON_ALPHA_LOW
+                                                                this.scaleX = ICON_SCALE_FACTOR
+                                                                this.scaleY = ICON_SCALE_FACTOR
+                                                        },
+                                                tint = Color.White
+                                        )
+                                        // Foreground icon
+                                        Icon(
+                                                imageVector = icon,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(36.dp),
+                                                tint = Color.White
+                                        )
+                                }
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                                text = title,
+                                                style = MaterialTheme.typography.titleLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                                text = subtitle,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                }
+
+                                Icon(
+                                        imageVector = Icons.Default.ArrowForwardIos,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint =
+                                                MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                                        alpha = 0.5f
                                                 )
                                 )
-        )
-
-        // Content
-        Column(
-                modifier = Modifier.fillMaxSize().padding(32.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Icon with glow effect
-            Box(contentAlignment = Alignment.Center) {
-                // Glow
-                Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        modifier =
-                                Modifier.size(100.dp).graphicsLayer {
-                                    scaleX = iconScale * 1.3f
-                                    scaleY = iconScale * 1.3f
-                                    alpha = 0.3f
-                                },
-                        tint = Color.White
-                )
-
-                // Main icon
-                Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        modifier =
-                                Modifier.size(80.dp).graphicsLayer {
-                                    scaleX = iconScale
-                                    scaleY = iconScale
-                                },
-                        tint = Color.White
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                    text = title,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.8f)
-            )
+                        }
+                }
         }
-    }
 }

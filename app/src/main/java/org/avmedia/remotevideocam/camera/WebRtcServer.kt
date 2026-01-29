@@ -12,7 +12,6 @@ import androidx.core.content.ContextCompat
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
-import java.util.*
 import org.avmedia.remotevideocam.camera.CameraToDisplayEventBus.emitEvent
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.subscribe
 import org.avmedia.remotevideocam.utils.AndGate
@@ -21,7 +20,7 @@ import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.json.JSONObject
 import org.webrtc.*
 
-class WebRtcServer : IVideoServer, MotionProcessor.Listener {
+class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     private val TAG = "WebRtcPeer"
 
     // Constants
@@ -58,7 +57,7 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
     private val signalingHandler = SignalingHandler()
 
     private var videoCapturer: VideoCapturer? = null
-    private var motionProcessor: MotionProcessor? = null
+    private var motionProcessor: VideoProcessor? = null
 
     private var isInitialized = false
 
@@ -260,7 +259,7 @@ class WebRtcServer : IVideoServer, MotionProcessor.Listener {
         val videoSource = factory!!.createVideoSource(videoCapturer!!.isScreencast)
 
         val newMotionProcessor =
-                MotionProcessor().also {
+                VideoProcessor().also {
                     this.motionProcessor?.release()
                     this.motionProcessor = it
                 }
