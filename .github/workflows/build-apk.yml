@@ -12,6 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    
+    # Using 'env' to replace literals with constants
+    env:
+      ANDROID_BUILD_TOOLS_VERSION: "34.0.0"
+      RELEASE_DIR: "app/build/outputs/apk/release"
 
     steps:
       - name: Checkout code
@@ -27,25 +32,33 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      # This step ensures the Build Tools version you want is actually installed
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          build-tools: ${{ env.ANDROID_BUILD_TOOLS_VERSION }}
+
       - name: Build Release APK
         run: ./gradlew assembleRelease
 
       - name: Sign APK
         id: sign_app
-        uses: r0adkll/sign-android-release@v1
+        # Explicitly using v1.0.4 to ensure 'buildToolsVersion' is a recognized input
+        uses: r0adkll/sign-android-release@v1.0.4
         with:
-          releaseDirectory: app/build/outputs/apk/release
+          releaseDirectory: ${{ env.RELEASE_DIR }}
           signingKeyBase64: ${{ secrets.SIGNING_KEY_STORE_BASE64 }}
           alias: ${{ secrets.SIGNING_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
           keyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
-          buildToolsVersion: 34.0.0
+          buildToolsVersion: ${{ env.ANDROID_BUILD_TOOLS_VERSION }}
 
       - name: Upload APK to Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: ${{ steps.sign_app.outputs.signedReleaseFile }}
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
