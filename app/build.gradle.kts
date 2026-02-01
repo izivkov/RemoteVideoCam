@@ -16,24 +16,38 @@ android {
         versionName = "3.93"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        
+
         ndk {
             abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
         }
     }
 
-    buildFeatures {
-        compose = true
-        buildConfig = true
+    signingConfigs {
+        // In Kotlin DSL, we use getByName or create
+        create("release") {
+            // Using constants/variables for clarity
+            val envKsPath: String? = System.getenv("KEYSTORE_PATH")
+            val ksFile = file(envKsPath ?: "release.keystore")
+
+            if (ksFile.exists()) {
+                storeFile = ksFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            // CRITICAL: This line connects the config to the build
+            signingConfig = signingConfigs.getByName("release")
+
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
-    
+
     packaging {
         jniLibs {
             useLegacyPackaging = true
