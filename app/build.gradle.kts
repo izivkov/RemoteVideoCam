@@ -12,8 +12,8 @@ android {
         applicationId = "org.avmedia.remotevideocam"
         minSdk = 24
         targetSdk = 36
-        versionCode = 392
-        versionName = "3.92"
+        versionCode = 393
+        versionName = "3.93"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
@@ -41,12 +41,12 @@ android {
     }
     
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
     
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "21"
     }
 }
 
