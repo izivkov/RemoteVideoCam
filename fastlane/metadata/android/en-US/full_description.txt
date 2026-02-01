@@ -1,6 +1,15 @@
-Remote Video Cam allows two android devices to stream video/audio to each other on the same LAN. The app needs to run on both devices.
-When started, the app will automatically find the other device, and will start streaming video from its cam to it.
-The user can select to be either in "camera" or "display" mode on each device. Both phones can be in "display" mode as well,
-to see the other's camera view. The app can be used to monitor things in the house or in the yard, walkie-talkie, etc.
+Remote Video Cam transforms two Android devices into a secure, portable audio/video streaming system. It works completely offline, using your local LAN, Wi-Fi Aware, or Wi-Fi Direct to establish a robust link between devices.
 
-WARNING: Do not use this app as a baby monitor! It is not certified as such. The video might freeze, and you will not be able to see the latest image.
+KEY FEATURES:
+• Zero Configuration: Devices find each other automatically.
+• Privacy First: No internet required. No external servers. Your video stays on your devices.
+• Robust Connection: innovative connection logic that tries multiple methods (LAN, Wi-Fi Aware, Wi-Fi Direct) to ensure you stay connected.
+• Modern Material 3 Design: A beautiful, easy-to-use interface built with the latest Android technologies.
+• Two-Way Audio/Video: Use it as a baby monitor, home security cam, or walkie-talkie.
+
+MODES:
+• Camera Mode: Broadcasts video and audio.
+• Display Mode: views the remote stream.
+
+WARNING:
+This app is for convenience only and is not a certified safety or medical monitoring device. Network connections can be unreliable. Please do not rely solely on this app for critical monitoring (like a baby monitor). We recommend placing a continuously moving object (like a clock) in the frame to verify the stream is active.

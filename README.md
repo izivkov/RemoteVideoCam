@@ -1,12 +1,37 @@
 # RemoteVideoCam
 
-Remote Video Cam allows two android devices to stream video/audio to each other on the same LAN. The app needs to run on both devices.
+Remote Video Cam is an open-source Android application that allows two devices to stream high-quality video and audio to each other over a local connection. Whether you're using it as a baby monitor, a DIY security camera, or a walkie-talkie, RemoteVideoCam offers a secure, offline-first solution without the need for internet access or third-party servers.
 
-**WARNING: If you are using this app as a baby monitor, please be aware that the video might freeze. To ensure the video is still running, use another method, such as placing a constantly moving object in the frame, like a clock with a second hand.**
+## ✨ Features
 
-When started, the app will automatically find the other device, and will start streaming video from its cam to it.
-The user can select to be either in "camera" or "display" mode on each device. Both phones can be in "display" mode as well,
-to see the other's camera view. The app can be used to monitor things in the house or in the yard, walkie-talkie, etc.
+- **Zero Configuration**: Devices automatically discover and connect to each other.
+- **Robust Connection**: Automatically negotiates the best available connection method:
+  - **Local Network (LAN)**: Uses your existing Wi-Fi network.
+  - **Wi-Fi Aware / Wi-Fi Direct**: Connects devices directly without an access point (offline).
+- **Secure & Private**: No external servers. No cloud. Video and audio streams never leave your local environment.
+- **Modern UI**: Built with **Jetpack Compose** and **Material 3**, offering a beautiful, responsive, and intuitive interface with dynamic colors.
+- **Two Modes**:
+  - **Camera Mode**: Acts as the broadcaster.
+  - **Display Mode**: View the feed from the other device.
+  - *Note: Both devices can be in Display Mode to see each other (bidirectional).*
+- **Audio Support**: Hear what's happening on the other end.
+
+## ⚠️ Important Note
+
+**Not a Medical Device**: While RemoteVideoCam can be useful for monitoring (e.g., as a baby monitor), it is **not** a certified medical device. 
+- Video feeds may freeze due to network interference.
+- Always have a backup monitoring method.
+- **Tip**: Place a moving object (like a clock with a second hand) in the frame to easily verify that the video is live.
+
+## 🛠️ Tech Stack
+
+- **Language**: Kotlin
+- **UI Framework**: Jetpack Compose (Material 3)
+- **Video/Audio**: WebRTC (Local negotiation)
+- **Computer Vision**: OpenCV (used for specific image processing tasks)
+- **Architecture**: MVVM with reactive data streams (RxJava/RxAndroid)
+
+## 📥 distinct
 
 [<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
      alt="Get it on F-Droid"
@@ -15,4 +40,8 @@ to see the other's camera view. The app can be used to monitor things in the hou
      alt="Get it on Google Play"
      height="80">](https://play.google.com/store/apps/details?id=org.avmedia.remotevideocam)
 
->> Note: If you are a developer, and like to tackle any of the outstanding issues, please contact me at `izivkov@gmail.com`.
+## 🤝 Contributing
+
+Contributions are welcome! If you're a developer and want to help improve RemoteVideoCam, please feel free to fork the repository and submit a pull request.
+
+For major changes or questions, please contact the maintainer at `izivkov@gmail.com`.
