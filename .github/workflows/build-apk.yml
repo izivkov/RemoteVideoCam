@@ -12,46 +12,48 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
-    # Using 'env' to replace literals with constants
+
+    # Defining 'constants' at the job level to avoid literals in steps
     env:
       ANDROID_BUILD_TOOLS_VERSION: "34.0.0"
-      RELEASE_DIR: "app/build/outputs/apk/release"
+      JAVA_VERSION: "17" # You can change this to "21" (see explanation below)
+      RELEASE_PATH: "app/build/outputs/apk/release"
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
           cache: gradle
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      # This step ensures the Build Tools version you want is actually installed
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
+          # This ensures the tools are actually downloaded to the runner
           build-tools: ${{ env.ANDROID_BUILD_TOOLS_VERSION }}
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
       - name: Build Release APK
         run: ./gradlew assembleRelease
 
       - name: Sign APK
         id: sign_app
-        # Explicitly using v1.0.4 to ensure 'buildToolsVersion' is a recognized input
-        uses: r0adkll/sign-android-release@v1.0.4
+        uses: r0adkll/sign-android-release@v1
+        # IMPORTANT: If 'with' fails, 'env' is the fallback for this specific action
+        env:
+          BUILD_TOOLS_VERSION: ${{ env.ANDROID_BUILD_TOOLS_VERSION }}
         with:
-          releaseDirectory: ${{ env.RELEASE_DIR }}
+          releaseDirectory: ${{ env.RELEASE_PATH }}
           signingKeyBase64: ${{ secrets.SIGNING_KEY_STORE_BASE64 }}
           alias: ${{ secrets.SIGNING_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
           keyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
-          buildToolsVersion: ${{ env.ANDROID_BUILD_TOOLS_VERSION }}
 
       - name: Upload APK to Release
         uses: softprops/action-gh-release@v2
