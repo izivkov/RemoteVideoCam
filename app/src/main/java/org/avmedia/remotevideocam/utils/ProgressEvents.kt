@@ -1,7 +1,7 @@
 package org.avmedia.remotevideocam.utils
 
-import io.reactivex.Flowable
-import io.reactivex.processors.PublishProcessor
+import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.processors.PublishProcessor
 import timber.log.Timber
 
 object ProgressEvents {
@@ -12,6 +12,7 @@ object ProgressEvents {
 
     fun onNext(e: Events) {
         if (eventProcessor.hasSubscribers()) {
+            Timber.d("EventProcessor:onNext----------- {event: $e}")
             return eventProcessor.onNext(e)
         } else {
             Timber.d("EventProcessor:onNext----------- No subscribers")

@@ -11,12 +11,12 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import org.avmedia.remotevideocam.camera.Camera
 import org.avmedia.remotevideocam.utils.ProgressEvents
 
-class BackButton @JvmOverloads constructor(
-    context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : com.google.android.material.button.MaterialButton(context, attrs, defStyleAttr) {
+class BackButton
+@JvmOverloads
+constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0) :
+        com.google.android.material.button.MaterialButton(context, attrs, defStyleAttr) {
 
     init {
         setOnTouchListener(OnTouchListener())
@@ -26,7 +26,6 @@ class BackButton @JvmOverloads constructor(
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             when (event?.action) {
                 MotionEvent.ACTION_UP -> {
-                    Camera.disconnect()
                     ProgressEvents.onNext(ProgressEvents.Events.ShowMainScreen)
                 }
             }

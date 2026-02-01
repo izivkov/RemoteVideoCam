@@ -1,43 +1,66 @@
 package org.avmedia.remotevideocam.display
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdManager.RegistrationListener
 import android.net.nsd.NsdServiceInfo
+import java.util.concurrent.ArrayBlockingQueue
+import org.avmedia.remotevideocam.common.IDataReceived
+import org.avmedia.remotevideocam.common.ILocalConnection
+import org.avmedia.remotevideocam.common.LocalConnectionSocketHandler
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import timber.log.Timber
-import java.io.BufferedInputStream
-import java.io.DataInputStream
-import java.io.OutputStream
-import java.net.ServerSocket
-import java.net.Socket
-import java.nio.charset.Charset
-import java.nio.charset.StandardCharsets
-import java.util.*
-import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.BlockingQueue
-import kotlin.concurrent.thread
 
 @SuppressLint("StaticFieldLeak")
 object NetworkServiceConnection : ILocalConnection {
 
-    private const val TAG = "NetworkServiceConn"
+    private const val TAG = "NetworkServiceConnDisplay"
     private var mNsdManager: NsdManager? = null
-    private var SERVICE_NAME = "REMOTE_VIDEO_CAM" + "-" + Utils.getMyIP()
+    private var SERVICE_NAME: String? = null
     private const val SERVICE_TYPE = "_org_avmedia_remotevideocam._tcp."
 
     private var dataReceivedCallback: IDataReceived? = null
 
     private const val port = 19400
-    private lateinit var socketHandler: SocketHandler
-    private val messageQueue: BlockingQueue<String> = ArrayBlockingQueue(100)
-    private lateinit var context: Context
+    private var socketHandler: LocalConnectionSocketHandler? = null
+    private var context: Context? = null
 
-    override fun init(context: Context) {
-        NetworkServiceConnection.context = context
-        mNsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager?
+    override fun init(context: Context?) {
+        this.context = context
+        SERVICE_NAME =
+                "REMOTE_VIDEO_CAM-${android.os.Build.MODEL}-${org.avmedia.remotevideocam.utils.Utils.getMyIP() ?: "unknown"}"
+        Timber.d("Initialised SERVICE_NAME: $SERVICE_NAME")
+
+        mNsdManager = context?.getSystemService(Context.NSD_SERVICE) as NsdManager?
+        socketHandler =
+                LocalConnectionSocketHandler(
+                        context,
+                        ArrayBlockingQueue(100),
+                        { dataReceivedCallback },
+                        {
+                            Timber.i("Display Connected.")
+                            ProgressEvents.onNext(ProgressEvents.Events.ConnectionDisplaySuccessful)
+                            try {
+                                org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.emitEvent(
+                                        org.json.JSONObject("{\"command\": \"CONNECTED\"}")
+                                )
+                            } catch (e: org.json.JSONException) {
+                                e.printStackTrace()
+                            }
+                        },
+                        {
+                            Timber.i("Display Disconnected.")
+                            ProgressEvents.onNext(ProgressEvents.Events.DisplayDisconnected)
+                            try {
+                                org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.emitEvent(
+                                        org.json.JSONObject("{\"command\": \"DISCONNECTED\"}")
+                                )
+                            } catch (e: org.json.JSONException) {
+                                e.printStackTrace()
+                            }
+                        }
+                )
         registerService(port)
     }
 
@@ -51,154 +74,53 @@ object NetworkServiceConnection : ILocalConnection {
 
     override fun disconnect(context: Context?) {
         try {
-            if (mNsdManager == null) {
-                return
-            }
             mNsdManager?.unregisterService(mRegistrationListener)
-            socketHandler.close()
-        } catch (e: java.lang.Exception) {
+            socketHandler?.close()
+        } catch (e: Exception) {
             Timber.d("Got exception in disconnect: $e")
         }
     }
 
     override fun isConnected(): Boolean {
-        return this::socketHandler.isInitialized && socketHandler.isConnected()
+        return socketHandler?.isConnected() ?: false
     }
 
     override fun sendMessage(message: String?) {
-        socketHandler.put(message)
+        message?.let { socketHandler?.put(it) }
     }
 
-    override fun start() {
-    }
+    override fun start() {}
 
     override fun stop() {
+        socketHandler?.stop()
     }
-    // end of interface
 
-    @SuppressLint("StaticFieldLeak")
+    override val isVideoCapable: Boolean = true
+    override val name: String = "Network (NSD) Display"
+
+    private var connectionThread: Thread? = null
     private fun runConnection() {
-        socketHandler = SocketHandler(messageQueue)
-
-        try {
-            thread {
-                val client: SocketHandler.ClientInfo = socketHandler.connect(port) ?: return@thread
-
-                thread {
-                    socketHandler.runSender(client.writer)
-                }
-                thread {
-                    socketHandler.runReceiver(client.reader)
-                }
-            }
-        } catch (e:Exception) {
-            Timber.d("Gor exception: $e")
+        if (connectionThread?.isAlive == true) {
+            Timber.d("Connection thread already running.")
+            return
         }
-    }
-
-    class SocketHandler(private val messageQueue: BlockingQueue<String>) {
-        private lateinit var client: Socket
-        private lateinit var serverSocket: ServerSocket
-        private lateinit var clientInfo: ClientInfo
-
-        class ClientInfo(val reader: Scanner, val writer: OutputStream)
-
-        fun isConnected(): Boolean {
-            return this::client.isInitialized && !client.isClosed
-        }
-
-        fun connect(port: Int): ClientInfo? {
-            try {
-                serverSocket = ServerSocket(port)
-                serverSocket.reuseAddress = true
-
-                while (true) {
-                    client = serverSocket.accept()
-                    Timber.i("Connected...")
-
-                    // only connect if the app is NOT running on this device.
-                    if (client.inetAddress.hostAddress != Utils.getMyIP()) {
-                        ProgressEvents.onNext(ProgressEvents.Events.ConnectionDisplaySuccessful)
-                        break
-                    } else {
-                        Timber.i("Trying to connect to myself. Ignore")
-                    }
-                }
-
-                val reader = Scanner(DataInputStream(BufferedInputStream(client.getInputStream())))
-                val writer = client.getOutputStream()
-
-                clientInfo = ClientInfo(reader, writer)
-
-                println("Client connected: ${client.inetAddress.hostAddress}")
-            } catch (e: Exception) {
-                Timber.i("Got exception: %s", e)
-                close()
-                return null
-            }
-            return clientInfo
-        }
-
-        fun runReceiver(reader: Scanner?) {
-            try {
-                while (true) {
-                    val payload: String? = reader?.nextLine()
-                    if (payload != null) {
-
-                        (context as Activity).runOnUiThread {
-                            dataReceivedCallback?.dataReceived(
-                                String(
-                                    payload.toByteArray(), StandardCharsets.UTF_8
-                                )
-                            )
-                        }
-                    }
-                }
-
-            } catch (ex: Exception) {
-                reader?.close()
-                Timber.d("got exception $ex")
-                close()
-                ProgressEvents.onNext(ProgressEvents.Events.CameraDisconnected)
-            } finally {
-            }
-        }
-
-        fun runSender(writer: OutputStream?) {
-            Timber.i("runSender started...")
-            try {
-                while (true) {
-                    val message = messageQueue.take() as String
-                    Timber.d("Sending command $message")
-                    writer?.write((message + '\n').toByteArray(Charset.defaultCharset()))
-                }
-            } catch (e: Exception) {
-                Timber.d("runSender InterruptedException: {e}")
-                writer?.close()
-                ProgressEvents.onNext(ProgressEvents.Events.CameraDisconnected)
-            } finally {
-            }
-            Timber.d("end of runSender thread...")
-        }
-
-        fun close() {
-            if (this::client.isInitialized && !client.isClosed) {
-                ProgressEvents.onNext(ProgressEvents.Events.DisplayDisconnected)
-                client.close()
-            }
-            try {
-                serverSocket.close()
-            } catch (e: Exception) {
-            }
-        }
-
-        fun put(message: String?) {
-            try {
-                this.messageQueue.put(message)
-            } catch (e: InterruptedException) {
-                e.printStackTrace()
-            }
-        }
+        connectionThread =
+                Thread(
+                        {
+                            while (context != null) {
+                                if (socketHandler?.isConnected() != true) {
+                                    Timber.d("Waiting for a connection from Camera...")
+                                    val clientInfo = socketHandler?.waitForConnection(port)
+                                    clientInfo?.let { socketHandler?.startCommunication(it) }
+                                }
+                                try {
+                                    Thread.sleep(1000)
+                                } catch (e: Exception) {}
+                            }
+                        },
+                        "NSD Display Server Thread"
+                )
+        connectionThread?.start()
     }
 
     private fun registerService(port: Int) {
@@ -208,33 +130,33 @@ object NetworkServiceConnection : ILocalConnection {
         serviceInfo.port = port
 
         try {
-            mNsdManager!!.registerService(
-                serviceInfo,
-                NsdManager.PROTOCOL_DNS_SD,
-                mRegistrationListener
+            mNsdManager?.registerService(
+                    serviceInfo,
+                    NsdManager.PROTOCOL_DNS_SD,
+                    mRegistrationListener
             )
         } catch (e: Exception) {
-            Timber.d("Got exception: %s", e)
+            Timber.e("Registration failed: $e")
         }
     }
 
-    private var mRegistrationListener: RegistrationListener = object : RegistrationListener {
-        override fun onServiceRegistered(NsdServiceInfo: NsdServiceInfo) {
-            val mServiceName = NsdServiceInfo.serviceName
-            SERVICE_NAME = mServiceName
-            Timber.d("Registered name : $mServiceName")
-        }
+    private var mRegistrationListener: RegistrationListener =
+            object : RegistrationListener {
+                override fun onServiceRegistered(nsdServiceInfo: NsdServiceInfo) {
+                    SERVICE_NAME = nsdServiceInfo.serviceName
+                    Timber.d("Registered name : $SERVICE_NAME")
+                }
 
-        override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-            Timber.d("onRegistrationFailed")
-        }
+                override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                    Timber.e("onRegistrationFailed: $errorCode")
+                }
 
-        override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) {
-            Timber.d("Service Unregistered : %s", serviceInfo.serviceName)
-        }
+                override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) {
+                    Timber.d("Service Unregistered : ${serviceInfo.serviceName}")
+                }
 
-        override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-            Timber.d("onUnregistrationFailed : %s", errorCode)
-        }
-    }
+                override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                    Timber.e("onUnregistrationFailed : $errorCode")
+                }
+            }
 }

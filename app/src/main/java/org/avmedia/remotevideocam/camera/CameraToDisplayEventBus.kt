@@ -1,6 +1,6 @@
 package org.avmedia.remotevideocam.camera
 
-import io.reactivex.subjects.PublishSubject
+import io.reactivex.rxjava3.subjects.PublishSubject // Corrected import
 import org.json.JSONObject
 
 object CameraToDisplayEventBus {

@@ -1,17 +1,20 @@
 package org.avmedia.remotevideocam
 
 import android.app.Application
-import timber.log.Timber
-import timber.log.Timber.DebugTree
+import android.content.Context
 
 class MainApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        appContext = applicationContext
+    }
 
-        // Hook up timber for debug build only
-        if (BuildConfig.DEBUG) {
-            Timber.plant(DebugTree())
+    companion object {
+        private lateinit var appContext: Context
+
+        fun applicationContext(): Context {
+            return appContext
         }
     }
 }

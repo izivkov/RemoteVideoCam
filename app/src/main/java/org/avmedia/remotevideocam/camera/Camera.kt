@@ -2,136 +2,123 @@ package org.avmedia.remotevideocam.camera
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.util.Log
-import android.widget.ImageButton
+import io.reactivex.rxjava3.disposables.Disposable
 import org.avmedia.remotevideocam.camera.customcomponents.WebRTCSurfaceView
-import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionAction
-import org.avmedia.remotevideocam.frameanalysis.motion.MotionDetectionData
-import org.avmedia.remotevideocam.frameanalysis.motion.toMotionDetectionData
+import org.avmedia.remotevideocam.common.ILocalConnection
 import org.avmedia.remotevideocam.utils.ProgressEvents
-import org.json.JSONException
 import org.json.JSONObject
 import timber.log.Timber
 
 @SuppressLint("StaticFieldLeak")
 object Camera {
     private const val TAG = "Camera"
-    private var connection: ILocalConnection = NetworkServiceConnection()
+    private lateinit var connection: ILocalConnection
     private val videoServer: IVideoServer = WebRtcServer()
     private var context: Context? = null
 
+    private var displayEventsDisposable: Disposable? = null
+
     fun init(
-        context: Context?,
-        view: WebRTCSurfaceView,
+            context: Context?,
+            view: WebRTCSurfaceView,
     ) {
         this.context = context
+        this.connection = ConnectionStrategy.getCameraConnection(context!!)
 
-        connection.init(context)
-        connection.setDataCallback(DataReceived())
+        if (!connection.isConnected()) {
+            connection.init(context)
+            connection.setDataCallback(org.avmedia.remotevideocam.common.UnifiedDataRouter())
+        }
 
         videoServer.init(context)
         videoServer.setView(view)
+
+        if (isConnected()) {
+            videoServer.startClient()
+        }
 
         handleDisplayEvents()
         handleDisplayCommands()
     }
 
-    internal class DataReceived : IDataReceived {
-        override fun dataReceived(commandStr: String?) {
-            try {
-                DisplayToCameraEventBus.emitEvent(JSONObject(commandStr as String))
-            } catch (e: JSONException) {
-                e.printStackTrace()
-            }
-        }
-    }
-
     fun connect(context: Context?) {
+        // If it's a nullable type (ILocalConnection?)
         connection.connect(context)
     }
 
     fun disconnect() {
-        connection.stop()
+        // If connection is a lateinit property, check initialization first
+        if (::connection.isInitialized) {
+            connection.disconnect(context)
+        }
     }
 
     fun disconnectHard(context: Context?) {
+        // Using safe call is the cleanest way to check for null
         connection.disconnect(context)
     }
 
     private fun send(info: JSONObject) {
-        connection.sendMessage(info.toString())
+        if (connection.isConnected()) {
+            connection.sendMessage(info.toString())
+        } else if (org.avmedia.remotevideocam.display.NetworkServiceConnection.isConnected()) {
+            org.avmedia.remotevideocam.display.NetworkServiceConnection.sendMessage(info.toString())
+        } else {
+            Timber.tag(TAG).d("No connection available to send message: %s", info)
+        }
     }
 
     fun isConnected(): Boolean {
-        return connection.isConnected()
+        return this::connection.isInitialized && connection.isConnected()
     }
 
     @SuppressLint("CheckResult")
     private fun handleDisplayEvents() {
-        CameraToDisplayEventBus.processor
-            .subscribe(
-                { info -> send(info) }
-            ) { error -> Timber.d("Error occurred in CameraToDisplayEventBus: $error") }
+        if (displayEventsDisposable != null && !displayEventsDisposable!!.isDisposed) {
+            return
+        }
+        displayEventsDisposable =
+                CameraToDisplayEventBus.processor.subscribe(
+                        // 1st parameter: the onNext lambda
+                        { info: JSONObject -> send(info) },
+                        // 2nd parameter: the onError lambda
+                        { error: Throwable ->
+                            Timber.d("Error occurred in CameraToDisplayEventBus: $error")
+                        }
+                )
     }
 
     fun handleDisplayCommands() {
         DisplayToCameraEventBus.subscribe(
-            this.javaClass.simpleName,
-            { event: JSONObject? ->
-                event?.takeIf { it.has("command") }?.let {
-                    when (event.getString("command")) {
-                        "CONNECTED" -> {
-                            Timber.d("CONNECTED")
-                            ProgressEvents.onNext(ProgressEvents.Events.ConnectionCameraSuccessful)
-                            videoServer.setConnected(true)
-                        }
-
-                        "DISCONNECTED" -> {
-                            Timber.d("DISCONNECTED")
-                            ProgressEvents.onNext(ProgressEvents.Events.CameraDisconnected)
-                            videoServer.setConnected(false)
-                        }
-                    }
-                }
-                event?.takeIf { it.has(MotionDetectionData.KEY) }?.let {
-                    event.getJSONObject(MotionDetectionData.KEY)
-                        .toMotionDetectionData()
-                        .let { data ->
-                        when (data.action) {
-                            MotionDetectionAction.ENABLED ->
-                                setMotionDetection(true)
-
-                            MotionDetectionAction.DISABLED ->
-                                setMotionDetection(false)
-
-                            MotionDetectionAction.DETECTED,
-                            MotionDetectionAction.NOT_DETECTED ->
-                                Timber.tag(TAG).e(
-                                    "Unexpected motion detection action %s",
-                                    data.action.name
+                this.javaClass.simpleName,
+                { event: JSONObject? ->
+                    event?.takeIf { it.has("command") }?.let {
+                        when (event.getString("command")) {
+                            "CONNECTED" -> {
+                                Timber.d("CONNECTED")
+                                ProgressEvents.onNext(
+                                        ProgressEvents.Events.ConnectionCameraSuccessful
                                 )
+                                videoServer.setConnected(true)
+                                videoServer.startClient()
+                            }
+                            "DISCONNECTED" -> {
+                                Timber.d("DISCONNECTED")
+                                ProgressEvents.onNext(ProgressEvents.Events.CameraDisconnected)
+                                videoServer.setConnected(false)
+                            }
                         }
                     }
+                },
+                { error: Throwable? ->
+                    Timber.d("Error occurred in handleControllerWebRtcEvents: $error")
+                },
+                { commandJsn: JSONObject? ->
+                    commandJsn!!.has("command") &&
+                            ("CONNECTED" == commandJsn.getString("command") ||
+                                    "DISCONNECTED" == commandJsn.getString("command"))
+                    // filter everything else
                 }
-            },
-            { error: Throwable? ->
-                Timber.d(
-                    "Error occurred in handleControllerWebRtcEvents: $error"
-                )
-            },
-            { commandJsn: JSONObject? ->
-                commandJsn!!.has(
-                    "command"
-                ) && ("CONNECTED" == commandJsn.getString("command") || "DISCONNECTED" == commandJsn.getString(
-                    "command"
-                )) ||
-                commandJsn.has(MotionDetectionData.KEY)
-                // filter everything else
-            }
         )
-    }
-
-    private fun setMotionDetection(enable: Boolean) {
-        videoServer.setMotionDetection(enable)
     }
 }

@@ -1,15 +1,13 @@
 package org.avmedia.remotevideocam.camera
 
-import android.os.Build
-import android.util.Log
-import androidx.annotation.NonNull
-import androidx.annotation.RequiresApi
-import io.reactivex.disposables.Disposable
-import io.reactivex.functions.Consumer
-import io.reactivex.functions.Predicate
-import io.reactivex.subjects.PublishSubject
-import org.json.JSONObject
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.functions.Consumer
+import io.reactivex.rxjava3.functions.Predicate
+import io.reactivex.rxjava3.subjects.PublishSubject
 import java.util.*
+import org.json.JSONObject
+import timber.log.Timber
 
 object DisplayToCameraEventBus {
     private val subscribers: MutableMap<String, Disposable> = HashMap<String, Disposable>()
@@ -19,29 +17,43 @@ object DisplayToCameraEventBus {
     }
 
     fun subscribe(
-        subscriberName: String,
-        onNext: Consumer<in JSONObject?>?,
-        onError: Consumer<in Throwable?>?
+            subscriberName: String,
+            // CORRECTED: JSONObject and Throwable are not nullable inside the Consumer
+            onNext: Consumer<in JSONObject>?,
+            onError: Consumer<in Throwable>?
     ) {
-        subscribe(
-            subscriberName,
-            onNext,
-            onError
-        ) { true } // do not filter if no filter passed. Always return true.
+        subscribe(subscriberName, onNext, onError) {
+            true
+        } // do not filter if no filter passed. Always return true.
     }
 
     fun subscribe(
-        subscriberName: String,
-        onNext: Consumer<in JSONObject?>?,
-        onError: Consumer<in Throwable?>?,
-        filterPredicate: Predicate<in JSONObject?>?
+            subscriberName: String,
+            // CORRECTED: Same change here
+            onNext: Consumer<in JSONObject>?,
+            onError: Consumer<in Throwable>?,
+            filterPredicate: Predicate<in JSONObject>?
     ) {
         if (subscribers.containsKey(subscriberName)) {
             // This name already subscribed, cannot subscribe multiple times;
             return
         }
+        // Corrected code
         val subscriber: Disposable =
-            subject.filter(filterPredicate).subscribe(onNext, onError)
+                subject.filter(filterPredicate ?: Predicate { true }) // Default for filter
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(
+                                onNext ?: Consumer { /* Do nothing */}, // Default for onNext
+                                onError
+                                        ?: Consumer { error ->
+                                            Timber.tag("DisplayToCameraEventBus")
+                                                    .e(
+                                                            error,
+                                                            "Error received but no handler was subscribed"
+                                                    )
+                                        } // Default for onError
+                        )
+
         subscribers[subscriberName] = subscriber
     }
 
@@ -53,7 +65,7 @@ object DisplayToCameraEventBus {
         }
     }
 
-    fun unsubscribeAll () {
+    fun unsubscribeAll() {
         for (subscriber in subscribers.values) {
             subscriber.dispose()
         }
