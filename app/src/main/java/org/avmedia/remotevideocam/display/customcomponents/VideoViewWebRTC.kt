@@ -53,6 +53,8 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
         if (isInitialized) return
         isInitialized = true
 
+        disposables.add(createAppEventsSubscription())
+
         CameraStatusEventBus.addSubject("WEB_RTC_EVENT")
         CameraStatusEventBus.subscribe(
                         this.javaClass.simpleName,
@@ -139,21 +141,51 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
 
         init(rootEglBase?.eglBaseContext, null)
         setEnableHardwareScaler(true)
-        mirrorState = false
+        mirrorState = loadMirrorState()
         setMirror(mirrorState)
     }
 
+    private fun loadMirrorState(): Boolean {
+        val sharedPref = context.getSharedPreferences("MirrorPrefs", Context.MODE_PRIVATE)
+        return sharedPref.getBoolean("MirrorState", false)
+    }
+
+    private fun isSoundOn(): Boolean {
+        val sharedPref = context.getSharedPreferences("SoundPrefs", Context.MODE_PRIVATE)
+        val stateName = sharedPref.getString("SoundState", "OFF")
+        return stateName == "ON"
+    }
+
+    private fun applyAudioMuteState(enabled: Boolean) {
+        peerConnection?.receivers?.forEach { receiver ->
+            receiver.track()?.let { track ->
+                if (track.kind() == "audio") {
+                    track.setEnabled(enabled)
+                }
+            }
+        }
+    }
+
     private fun mute() {
-        peerConnection!!.receivers[0].track()?.setEnabled(false)
+        applyAudioMuteState(false)
     }
 
     private fun unmute() {
-        peerConnection!!.receivers[0].track()?.setEnabled(true)
+        applyAudioMuteState(true)
     }
 
     private fun toggleMirror() {
         mirrorState = !mirrorState
         setMirror(mirrorState)
+        saveMirrorState(mirrorState)
+    }
+
+    private fun saveMirrorState(state: Boolean) {
+        val sharedPref = context.getSharedPreferences("MirrorPrefs", Context.MODE_PRIVATE)
+        with(sharedPref.edit()) {
+            putBoolean("MirrorState", state)
+            apply()
+        }
     }
 
     private fun createAppEventsSubscription(): Disposable =
@@ -254,6 +286,11 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                             remoteVideoTrack.addSink(this@VideoViewWebRTC)
                             Timber.d("Attached video track from onAddStream")
                         }
+                        if (mediaStream.audioTracks.isNotEmpty()) {
+                            val remoteAudioTrack = mediaStream.audioTracks[0]
+                            remoteAudioTrack.setEnabled(isSoundOn())
+                            Timber.d("Attached audio track from onAddStream")
+                        }
                     }
 
                     override fun onRemoveStream(mediaStream: MediaStream) {}
@@ -270,6 +307,10 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                             track.addSink(this@VideoViewWebRTC)
                             Timber.d("Attached video track from onAddTrack")
                         }
+                        if (track is AudioTrack) {
+                            track.setEnabled(isSoundOn())
+                            Timber.d("Attached audio track from onAddTrack")
+                        }
                     }
                     override fun onTrack(transceiver: RtpTransceiver) {
                         Timber.d("onTrack: ${transceiver.mid}")
@@ -278,6 +319,10 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                             track.setEnabled(true)
                             track.addSink(this@VideoViewWebRTC)
                             Timber.d("Attached video track from onTrack")
+                        }
+                        if (track is AudioTrack) {
+                            track.setEnabled(isSoundOn())
+                            Timber.d("Attached audio track from onTrack")
                         }
                     }
                 }

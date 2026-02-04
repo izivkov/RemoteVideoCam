@@ -342,9 +342,21 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     }
 
     private fun createVideoCapturer(): VideoCapturer? {
+        val sharedPref = context?.getSharedPreferences("CameraPrefs", Context.MODE_PRIVATE)
+        val useFrontCamera = sharedPref?.getBoolean("UseFrontCamera", false) ?: false
+
         val enumerator =
                 if (Camera2Enumerator.isSupported(context)) Camera2Enumerator(context)
                 else Camera1Enumerator(true)
+
+        // Try to find the preferred camera
+        for (name in enumerator.deviceNames) {
+            if (enumerator.isFrontFacing(name) == useFrontCamera) {
+                return enumerator.createCapturer(name, null)
+            }
+        }
+
+        // Fallback
         for (name in enumerator.deviceNames) {
             if (enumerator.isBackFacing(name)) return enumerator.createCapturer(name, null)
         }
@@ -411,8 +423,37 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
                             { event ->
-                                if (event == ProgressEvents.Events.FlipCamera)
-                                        (videoCapturer as? CameraVideoCapturer)?.switchCamera(null)
+                                if (event == ProgressEvents.Events.FlipCamera) {
+                                    (videoCapturer as? CameraVideoCapturer)?.switchCamera(
+                                            object : CameraVideoCapturer.CameraSwitchHandler {
+                                                override fun onCameraSwitchDone(
+                                                        isFrontCamera: Boolean
+                                                ) {
+                                                    val sharedPref =
+                                                            context?.getSharedPreferences(
+                                                                    "CameraPrefs",
+                                                                    Context.MODE_PRIVATE
+                                                            )
+                                                    with(sharedPref?.edit()) {
+                                                        this?.putBoolean(
+                                                                "UseFrontCamera",
+                                                                isFrontCamera
+                                                        )
+                                                        this?.apply()
+                                                    }
+                                                }
+
+                                                override fun onCameraSwitchError(
+                                                        errorDescription: String?
+                                                ) {
+                                                    Log.d(
+                                                            TAG,
+                                                            "Camera Switch Error: $errorDescription"
+                                                    )
+                                                }
+                                            }
+                                    )
+                                }
                             },
                             { Log.d(TAG, "Event Error: $it") }
                     )
