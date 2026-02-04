@@ -13,6 +13,7 @@ Remote Video Cam is an open-source Android application that allows two devices t
 - **Two Modes**:
   - **Camera Mode**: Acts as the broadcaster.
   - **Display Mode**: View the feed from the other device.
+    - *Includes "Mirror" option to flip the video horizontally.*
   - *Note: Both devices can be in Display Mode to see each other (bidirectional).*
 - **Audio Support**: Hear what's happening on the other end.
 
