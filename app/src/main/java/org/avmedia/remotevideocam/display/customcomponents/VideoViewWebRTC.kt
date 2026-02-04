@@ -97,6 +97,11 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
     }
 
     private fun start() {
+        if (peerConnection != null) {
+            show()
+            return
+        }
+        stop()
         initializeSurfaceViews()
         initializePeerConnectionFactory()
         initializePeerConnections()
@@ -106,6 +111,18 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
 
     private fun stop() {
         hide()
+
+        try {
+            peerConnection?.close()
+        } catch (e: Exception) {
+            Timber.e(e, "Error closing peer connection")
+        }
+        peerConnection?.dispose()
+        peerConnection = null
+
+        factory?.dispose()
+        factory = null
+
         release()
     }
 
@@ -195,7 +212,6 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
 
     private fun createPeerConnection(factory: PeerConnectionFactory?): PeerConnection? {
         val iceServers = ArrayList<IceServer>()
-        iceServers.add(IceServer("stun:stun.l.google.com:19302"))
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
         val pcConstraints = MediaConstraints()
         val pcObserver: PeerConnection.Observer =

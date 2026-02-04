@@ -57,6 +57,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     private val signalingHandler = SignalingHandler()
 
     private var videoCapturer: VideoCapturer? = null
+    private var videoSource: VideoSource? = null
     private var motionProcessor: VideoProcessor? = null
 
     private var isInitialized = false
@@ -81,7 +82,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
         }
         signalingHandler.handleControllerWebRtcEvents()
 
-        createAppEventsSubscription(context)
+        createAppEventsSubscription()
     }
 
     override val isRunning: Boolean
@@ -157,13 +158,34 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
         motionProcessor?.release()
         motionProcessor = null
 
-        mediaStream?.let {
-            it.removeTrack(videoTrackFromCamera)
-            it.removeTrack(localAudioTrack)
+        try {
+            videoCapturer?.stopCapture()
+        } catch (e: InterruptedException) {
+            Log.e(TAG, "Failed to stop video capturer", e)
         }
+        videoCapturer?.dispose()
+        videoCapturer = null
 
+        videoSource?.dispose()
+        videoSource = null
+
+        videoTrackFromCamera?.dispose()
+        videoTrackFromCamera = null
+
+        localAudioTrack?.dispose()
+        localAudioTrack = null
+
+        audioSource?.dispose()
+        audioSource = null
+
+        mediaStream = null
+
+        peerConnection?.close()
         peerConnection?.dispose()
         peerConnection = null
+
+        factory?.dispose()
+        factory = null
 
         view?.release()
         stopClient()
@@ -217,7 +239,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     }
 
     private fun initializePeerConnections() {
-        val iceServers = arrayListOf(PeerConnection.IceServer.builder(STUN_URL).createIceServer())
+        val iceServers = ArrayList<PeerConnection.IceServer>()
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
 
         peerConnection =
@@ -260,22 +282,23 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
 
     private fun createVideoTrackFromCameraAndShowIt() {
         videoCapturer = createVideoCapturer()
-        val videoSource = factory!!.createVideoSource(videoCapturer!!.isScreencast)
+        val source = factory!!.createVideoSource(videoCapturer!!.isScreencast)
+        videoSource = source
 
         val newMotionProcessor =
                 VideoProcessor().also {
                     this.motionProcessor?.release()
                     this.motionProcessor = it
                 }
-        videoSource.setVideoProcessor(VideoProcessorImpl(newMotionProcessor))
+        source.setVideoProcessor(VideoProcessorImpl(newMotionProcessor))
 
         surfaceTextureHelper =
                 SurfaceTextureHelper.create(CAPTURE_THREAD, rootEglBase!!.eglBaseContext)
-        videoCapturer!!.initialize(surfaceTextureHelper, context, videoSource.capturerObserver)
+        videoCapturer!!.initialize(surfaceTextureHelper, context, source.capturerObserver)
         videoCapturer!!.startCapture(VIDEO_RESOLUTION_WIDTH, VIDEO_RESOLUTION_HEIGHT, FPS)
 
         videoTrackFromCamera =
-                factory!!.createVideoTrack(VIDEO_TRACK_ID, videoSource).apply {
+                factory!!.createVideoTrack(VIDEO_TRACK_ID, source).apply {
                     setEnabled(true)
                     addSink(view)
                 }
@@ -383,7 +406,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     }
 
     @SuppressLint("LogNotTimber")
-    private fun createAppEventsSubscription(context: Context?): Disposable =
+    private fun createAppEventsSubscription(): Disposable =
             ProgressEvents.connectionEventFlowable
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
@@ -401,6 +424,5 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
         const val FPS = 30
     }
 
-    override fun onDetectionResult(detected: Boolean) {
-    }
+    override fun onDetectionResult(detected: Boolean) {}
 }
