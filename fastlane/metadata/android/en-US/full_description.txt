@@ -9,7 +9,7 @@ KEY FEATURES:
 
 MODES:
 • Camera Mode: Broadcasts video and audio.
-• Display Mode: views the remote stream.
+• Display Mode: views the remote stream (with Mirror option).
 
 WARNING:
 This app is for convenience only and is not a certified safety or medical monitoring device. Network connections can be unreliable. Please do not rely solely on this app for critical monitoring (like a baby monitor). We recommend placing a continuously moving object (like a clock) in the frame to verify the stream is active.
