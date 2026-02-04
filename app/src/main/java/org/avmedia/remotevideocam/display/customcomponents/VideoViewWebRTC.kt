@@ -244,22 +244,43 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
 
     private fun createPeerConnection(factory: PeerConnectionFactory?): PeerConnection? {
         val iceServers = ArrayList<IceServer>()
-        val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
+        val rtcConfig =
+                PeerConnection.RTCConfiguration(iceServers).apply {
+                    // Enable all ICE candidates including host candidates for WiFi Direct
+                    iceTransportsType = PeerConnection.IceTransportsType.ALL
+                    // Use continual gathering to discover all network interfaces
+                    continualGatheringPolicy =
+                            PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+                    // Enable TCP candidates as fallback
+                    tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.ENABLED
+                }
         val pcConstraints = MediaConstraints()
         val pcObserver: PeerConnection.Observer =
                 object : PeerConnection.Observer {
-                    override fun onSignalingChange(signalingState: PeerConnection.SignalingState) {}
+                    override fun onSignalingChange(signalingState: PeerConnection.SignalingState) {
+                        Timber.d("Signaling state changed: $signalingState")
+                    }
                     override fun onIceConnectionChange(
                             iceConnectionState: PeerConnection.IceConnectionState
-                    ) {}
+                    ) {
+                        Timber.d("ICE connection state changed: $iceConnectionState")
+                    }
                     override fun onStandardizedIceConnectionChange(
                             newState: PeerConnection.IceConnectionState
-                    ) {}
-                    override fun onConnectionChange(newState: PeerConnection.PeerConnectionState) {}
-                    override fun onIceConnectionReceivingChange(b: Boolean) {}
+                    ) {
+                        Timber.d("Standardized ICE connection state changed: $newState")
+                    }
+                    override fun onConnectionChange(newState: PeerConnection.PeerConnectionState) {
+                        Timber.d("Peer connection state changed: $newState")
+                    }
+                    override fun onIceConnectionReceivingChange(b: Boolean) {
+                        Timber.d("ICE connection receiving change: $b")
+                    }
                     override fun onIceGatheringChange(
                             iceGatheringState: PeerConnection.IceGatheringState
-                    ) {}
+                    ) {
+                        Timber.d("ICE gathering state changed: $iceGatheringState")
+                    }
 
                     override fun onIceCandidate(iceCandidate: IceCandidate) {
                         Timber.d("Local ICE Candidate: ${iceCandidate.sdpMid}")
@@ -386,10 +407,13 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
     inner class SignalingHandler {
         fun handleWebRtcEvent(webRtcEvent: JSONObject) {
             val type = webRtcEvent.getString("type")
-            Timber.d("Received WebRTC Event: $type")
+            Timber.d("VideoViewWebRTC received WebRTC Event: $type")
             when (type) {
                 "offer" -> {
+                    Timber.d("Processing OFFER from camera")
                     if (peerConnection == null) {
+                        Timber.d("Initializing peer connection for offer")
+                        show() // Make the view visible BEFORE initializing surface
                         initializeSurfaceViews()
                         initializePeerConnections()
                     }
@@ -403,6 +427,7 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                     doAnswer()
                 }
                 "candidate" -> {
+                    Timber.d("Processing ICE candidate from camera")
                     val candidate =
                             IceCandidate(
                                     webRtcEvent.getString("id"),

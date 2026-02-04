@@ -197,7 +197,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
 
     private fun doCall() {
         val sdpMediaConstraints = MediaConstraints()
-        // Maintain the "false" constraints from your working version
+        // These are correct for a send-only peer (camera sending to display)
         sdpMediaConstraints.mandatory.add(
                 MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false")
         )
@@ -208,12 +208,14 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
         peerConnection?.createOffer(
                 object : SimpleSdpObserver() {
                     override fun onCreateSuccess(sessionDescription: SessionDescription) {
+                        Log.d(TAG, "Server created OFFER")
                         peerConnection?.setLocalDescription(SimpleSdpObserver(), sessionDescription)
                         val message =
                                 JSONObject().apply {
                                     put("type", TYPE_OFFER)
                                     put("sdp", sessionDescription.description)
                                 }
+                        Log.d(TAG, "Server sending OFFER to display")
                         sendMessage(message)
                     }
                 },
@@ -222,15 +224,18 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     }
 
     private fun doAnswer() {
+        Log.d(TAG, "Server creating ANSWER")
         peerConnection?.createAnswer(
                 object : SimpleSdpObserver() {
                     override fun onCreateSuccess(sessionDescription: SessionDescription) {
+                        Log.d(TAG, "Server created ANSWER")
                         peerConnection?.setLocalDescription(SimpleSdpObserver(), sessionDescription)
                         val message =
                                 JSONObject().apply {
                                     put("type", TYPE_ANSWER)
                                     put("sdp", sessionDescription.description)
                                 }
+                        Log.d(TAG, "Server sending ANSWER to display")
                         sendMessage(message)
                     }
                 },
@@ -240,7 +245,16 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
 
     private fun initializePeerConnections() {
         val iceServers = ArrayList<PeerConnection.IceServer>()
-        val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
+        val rtcConfig =
+                PeerConnection.RTCConfiguration(iceServers).apply {
+                    // Enable all ICE candidates including host candidates for WiFi Direct
+                    iceTransportsType = PeerConnection.IceTransportsType.ALL
+                    // Use continual gathering to discover all network interfaces
+                    continualGatheringPolicy =
+                            PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+                    // Enable TCP candidates as fallback
+                    tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.ENABLED
+                }
 
         peerConnection =
                 factory?.createPeerConnection(
@@ -258,14 +272,22 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                                 sendMessage(message)
                             }
                             // ... (rest of observer overrides kept empty for brevity)
-                            override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
+                            override fun onSignalingChange(p0: PeerConnection.SignalingState?) {
+                                Log.d(TAG, "Signaling state changed: $p0")
+                            }
                             override fun onIceConnectionChange(
                                     p0: PeerConnection.IceConnectionState?
-                            ) {}
-                            override fun onIceConnectionReceivingChange(p0: Boolean) {}
+                            ) {
+                                Log.d(TAG, "ICE connection state changed: $p0")
+                            }
+                            override fun onIceConnectionReceivingChange(p0: Boolean) {
+                                Log.d(TAG, "ICE connection receiving change: $p0")
+                            }
                             override fun onIceGatheringChange(
                                     p0: PeerConnection.IceGatheringState?
-                            ) {}
+                            ) {
+                                Log.d(TAG, "ICE gathering state changed: $p0")
+                            }
                             override fun onIceCandidatesRemoved(p0: Array<out IceCandidate>?) {}
                             override fun onAddStream(p0: MediaStream?) {}
                             override fun onRemoveStream(p0: MediaStream?) {}
@@ -366,6 +388,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     private fun sendMessage(message: JSONObject) {
         val json = JSONObject()
         json.put(TO_DISPLAY, message)
+        Log.d(TAG, "Server emitting WebRTC message: ${message.getString("type")}")
         emitEvent(json)
     }
 

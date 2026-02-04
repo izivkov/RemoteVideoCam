@@ -29,13 +29,13 @@ class LocalConnectionSocketHandler(
 
     fun connect(host: String?, port: Int): ClientInfo? {
         try {
-            Timber.d("Connecting to $host:$port...")
+            Timber.d("LocalConnectionSocketHandler: Connecting to $host:$port...")
             client = Socket()
             client!!.connect(java.net.InetSocketAddress(host, port), 5000) // 5s timeout
-            Timber.d("Connected to $host:$port")
+            Timber.d("LocalConnectionSocketHandler: Successfully connected to $host:$port")
             return createClientInfo(client!!)
         } catch (e: Exception) {
-            Timber.e("Connect to $host:$port failed: ${e.message}")
+            Timber.e("LocalConnectionSocketHandler: Connect to $host:$port failed: ${e.message}")
             return null
         }
     }
@@ -58,7 +58,7 @@ class LocalConnectionSocketHandler(
             return createClientInfo(client!!)
         } catch (e: Exception) {
             if (!stopped) {
-            Timber.e("Wait for connection failed: ${e.message}")
+                Timber.e("Wait for connection failed: ${e.message}")
             }
             return null
         } finally {
@@ -80,6 +80,7 @@ class LocalConnectionSocketHandler(
 
     fun startCommunication(clientInfo: ClientInfo) {
         stopped = false
+        Timber.d("LocalConnectionSocketHandler: Starting communication threads")
         onConnected()
 
         Thread({ runReceiver(clientInfo.reader) }, "Receiver Thread").start()
@@ -95,6 +96,7 @@ class LocalConnectionSocketHandler(
                         "Sender Thread"
                 )
                 .start()
+        Timber.d("LocalConnectionSocketHandler: Communication threads started")
     }
 
     private fun runReceiver(reader: Scanner) {
@@ -132,8 +134,11 @@ class LocalConnectionSocketHandler(
 
     fun put(message: String) {
         try {
+            Timber.d("LocalConnectionSocketHandler: Queuing message (${message.take(100)}...)")
             messageQueue.put(message)
+            Timber.d("LocalConnectionSocketHandler: Message queued successfully")
         } catch (e: InterruptedException) {
+            Timber.e("LocalConnectionSocketHandler: Failed to queue message: ${e.message}")
             e.printStackTrace()
         }
     }
