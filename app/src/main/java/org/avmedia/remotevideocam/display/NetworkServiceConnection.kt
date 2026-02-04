@@ -56,6 +56,7 @@ object NetworkServiceConnection : ILocalConnection {
                                 org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.emitEvent(
                                         org.json.JSONObject("{\"command\": \"DISCONNECTED\"}")
                                 )
+                                CameraStatusEventBus.emitEvent("VIDEO_COMMAND", "STOP")
                             } catch (e: org.json.JSONException) {
                                 e.printStackTrace()
                             }

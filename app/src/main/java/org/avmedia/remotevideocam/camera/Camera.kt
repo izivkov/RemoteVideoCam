@@ -51,11 +51,13 @@ object Camera {
         if (::connection.isInitialized) {
             connection.disconnect(context)
         }
+        videoServer.setConnected(false)
     }
 
     fun disconnectHard(context: Context?) {
         // Using safe call is the cleanest way to check for null
         connection.disconnect(context)
+        videoServer.setConnected(false)
     }
 
     private fun send(info: JSONObject) {
