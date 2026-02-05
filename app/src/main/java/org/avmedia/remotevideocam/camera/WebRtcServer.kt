@@ -63,7 +63,6 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     private var isInitialized = false
 
     override fun init(context: Context?) {
-        println(">>> init called")
         if (isInitialized) return
         isInitialized = true
 
@@ -89,7 +88,6 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
         get() = isInitialized
 
     override fun startClient() {
-        println(">>> Start client called")
         emitEvent(ConnectionUtils.createStatus(CMD_VIDEO_PROTOCOL, "WEBRTC"))
         sendServerUrl()
         emitEvent(ConnectionUtils.createStatus(CMD_VIDEO_COMMAND, "START"))
@@ -106,7 +104,6 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     override fun setView(view: SurfaceView?) {}
     override fun setView(view: TextureView?) {}
     override fun setView(view: SurfaceViewRenderer?) {
-        println(">>> setView called")
 
         this.view = view
         this.view?.isEnabled = false
@@ -279,7 +276,6 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                         }
                 )
     }
-
     private fun createVideoTrackFromCameraAndShowIt() {
         videoCapturer = createVideoCapturer()
         val source = factory!!.createVideoSource(videoCapturer!!.isScreencast)
@@ -400,14 +396,44 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                                 )
                             }
                             TYPE_CANDIDATE -> {
-                                Log.d(TAG, "Server received CANDIDATE")
-                                val candidate =
+
+                                // 2. THE FIX for WiFi direct without local WiFi: When you receive a candidate, or right after the Offer/Answer,
+                                // manually inject the Peer's IP address.
+                                fun handleCandidate_WiFiDirect(json: JSONObject) {
+                                    val candidateStr = json.getString("candidate")
+
+                                    // Check if the candidate we received is the "bad" one
+                                    val finalizedCandidate = if (candidateStr.contains("192.0.0.")) {
+                                        // Log it so you know it's happening
+                                        Log.w(TAG, "Intercepted bad candidate, swapping with known P2P IP")
+
+                                        // Construct a manual candidate string using the known P2P IP
+                                        // (The Group Owner is ALWAYS 192.168.49.1)
+                                        "candidate:1 1 UDP 2122260223 192.168.49.1 50000 typ host"
+                                    } else {
+                                        candidateStr
+                                    }
+
+                                    val candidate = IceCandidate(
+                                        json.getString("id"),
+                                        json.getInt("label"),
+                                        finalizedCandidate
+                                    )
+                                    peerConnection?.addIceCandidate(candidate)
+                                }
+
+                                fun handleCandidate(json: JSONObject) {
+                                    Log.d(TAG, "Server received CANDIDATE")
+                                    val candidate =
                                         IceCandidate(
-                                                webRtcEvent.getString("id"),
-                                                webRtcEvent.getInt("label"),
-                                                webRtcEvent.getString("candidate")
+                                            webRtcEvent.getString("id"),
+                                            webRtcEvent.getInt("label"),
+                                            webRtcEvent.getString("candidate")
                                         )
-                                peerConnection?.addIceCandidate(candidate)
+                                    peerConnection?.addIceCandidate(candidate)
+                                }
+
+                                handleCandidate(webRtcEvent)
                             }
                         }
                     },
