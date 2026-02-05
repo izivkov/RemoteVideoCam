@@ -6,8 +6,8 @@ import android.net.NetworkCapabilities
 import android.net.wifi.aware.WifiAwareManager
 import android.os.Build
 import org.avmedia.remotevideocam.common.ILocalConnection
-import timber.log.Timber
 import org.avmedia.remotevideocam.display.NetworkServiceConnection as DisplayNetworkConnection
+import timber.log.Timber
 
 object ConnectionStrategy {
 
@@ -30,11 +30,11 @@ object ConnectionStrategy {
 
     fun getCameraConnection(context: Context): ILocalConnection {
         val type =
-            if (selectedType == ConnectionType.AUTO) {
-                determineBestConnectionType(context)
-            } else {
-                selectedType
-            }
+                if (selectedType == ConnectionType.AUTO) {
+                    determineBestConnectionType(context)
+                } else {
+                    selectedType
+                }
 
         if (type == currentType && currentConnection != null) {
             return currentConnection!!
@@ -46,28 +46,27 @@ object ConnectionStrategy {
         Timber.d("Creating new Camera connection of type: $type")
         currentType = type
         currentConnection =
-            when (type) {
-                ConnectionType.NETWORK -> NetworkServiceConnection()
-                ConnectionType.WIFI_DIRECT -> WiFiDirectServiceConnection(isVideoCapable = true)
-                ConnectionType.WIFI_AWARE ->
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        WiFiAwareServiceConnection(isVideoCapable = true)
-                    } else {
-                        WiFiDirectServiceConnection(isVideoCapable = true)
-                    }
-
-                else -> NetworkServiceConnection()
-            }
+                when (type) {
+                    ConnectionType.NETWORK -> NetworkServiceConnection()
+                    ConnectionType.WIFI_DIRECT -> WiFiDirectServiceConnection(isVideoCapable = true)
+                    ConnectionType.WIFI_AWARE ->
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                WiFiAwareServiceConnection(isVideoCapable = true)
+                            } else {
+                                WiFiDirectServiceConnection(isVideoCapable = true)
+                            }
+                    else -> NetworkServiceConnection()
+                }
         return currentConnection!!
     }
 
     fun getDisplayConnection(context: Context): ILocalConnection {
         val type =
-            if (selectedType == ConnectionType.AUTO) {
-                determineBestConnectionType(context)
-            } else {
-                selectedType
-            }
+                if (selectedType == ConnectionType.AUTO) {
+                    determineBestConnectionType(context)
+                } else {
+                    selectedType
+                }
 
         // For NETWORK, we must return the display-specific singleton object
         if (type == ConnectionType.NETWORK) {
@@ -78,9 +77,9 @@ object ConnectionStrategy {
         return getCameraConnection(context)
     }
 
-    private fun determineBestConnectionType(context: Context): ConnectionType {
+    private fun determineBestConnectionType_OROG(context: Context): ConnectionType {
         val connectivityManager =
-            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val activeNetwork = connectivityManager.activeNetwork
         val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
 
@@ -92,7 +91,7 @@ object ConnectionStrategy {
         // Priority 2: Use Wi-Fi Aware if hardware supports it and is enabled
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val awareManager =
-                context.getSystemService(Context.WIFI_AWARE_SERVICE) as WifiAwareManager?
+                    context.getSystemService(Context.WIFI_AWARE_SERVICE) as WifiAwareManager?
             if (awareManager?.isAvailable == true) {
                 return ConnectionType.WIFI_AWARE
             }
@@ -102,7 +101,7 @@ object ConnectionStrategy {
         return ConnectionType.WIFI_DIRECT
     }
 
-    private fun determineBestConnectionType_TEST(context: Context): ConnectionType {
+    private fun determineBestConnectionType(context: Context): ConnectionType {
         // return ConnectionType.NETWORK
         // return ConnectionType.WIFI_AWARE
         return ConnectionType.WIFI_DIRECT

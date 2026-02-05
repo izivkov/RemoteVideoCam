@@ -221,8 +221,12 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                 PeerConnectionFactory.InitializationOptions.builder(context)
                         .setEnableInternalTracer(true)
                         .createInitializationOptions()
+        NetworkMonitor.init(context)
         PeerConnectionFactory.initialize(options)
         // End new
+
+        val factoryOptions = PeerConnectionFactory.Options().apply { networkIgnoreMask = 0 }
+        Timber.d("Display Local IPs: ${org.avmedia.remotevideocam.utils.Utils.getAllMyIPs()}")
 
         val encoderFactory: VideoEncoderFactory =
                 DefaultVideoEncoderFactory(rootEglBase!!.eglBaseContext, true, true)
@@ -231,6 +235,7 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
 
         factory =
                 PeerConnectionFactory.builder()
+                        .setOptions(factoryOptions)
                         .setVideoEncoderFactory(encoderFactory)
                         .setVideoDecoderFactory(decoderFactory)
                         .createPeerConnectionFactory()
@@ -244,14 +249,29 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
 
     private fun createPeerConnection(factory: PeerConnectionFactory?): PeerConnection? {
         val iceServers = ArrayList<IceServer>()
-        val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
-        val pcConstraints = MediaConstraints()
+
+        val rtcConfig =
+                PeerConnection.RTCConfiguration(iceServers).apply {
+                    sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+                    continualGatheringPolicy =
+                            PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+                    iceTransportsType = PeerConnection.IceTransportsType.ALL
+                    candidateNetworkPolicy = PeerConnection.CandidateNetworkPolicy.ALL
+                    iceCandidatePoolSize = 10
+                    bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE
+                    rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE
+                    tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.ENABLED
+                }
+
+        Logging.enableLogToDebugOutput(Logging.Severity.LS_INFO)
         val pcObserver: PeerConnection.Observer =
                 object : PeerConnection.Observer {
                     override fun onSignalingChange(signalingState: PeerConnection.SignalingState) {}
                     override fun onIceConnectionChange(
                             iceConnectionState: PeerConnection.IceConnectionState
-                    ) {}
+                    ) {
+                        Timber.d("Display ICE Connection Change: $iceConnectionState")
+                    }
                     override fun onStandardizedIceConnectionChange(
                             newState: PeerConnection.IceConnectionState
                     ) {}
@@ -259,10 +279,12 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                     override fun onIceConnectionReceivingChange(b: Boolean) {}
                     override fun onIceGatheringChange(
                             iceGatheringState: PeerConnection.IceGatheringState
-                    ) {}
+                    ) {
+                        Timber.d("Display ICE Gathering Change: $iceGatheringState")
+                    }
 
                     override fun onIceCandidate(iceCandidate: IceCandidate) {
-                        Timber.d("Local ICE Candidate: ${iceCandidate.sdpMid}")
+                        Timber.d("Local ICE Candidate: ${iceCandidate.sdp}")
                         val message = JSONObject()
                         try {
                             message.put("type", "candidate")
@@ -326,7 +348,7 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                         }
                     }
                 }
-        return factory!!.createPeerConnection(rtcConfig, pcConstraints, pcObserver)
+        return factory!!.createPeerConnection(rtcConfig, pcObserver)
     }
 
     private fun doAnswer() {
@@ -403,6 +425,7 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                     doAnswer()
                 }
                 "candidate" -> {
+                    Timber.d("Display received CANDIDATE: ${webRtcEvent.getString("candidate")}")
                     val candidate =
                             IceCandidate(
                                     webRtcEvent.getString("id"),

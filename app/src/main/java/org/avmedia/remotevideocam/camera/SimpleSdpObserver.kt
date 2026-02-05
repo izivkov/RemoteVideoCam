@@ -9,6 +9,6 @@ internal open class SimpleSdpObserver : SdpObserver {
     override fun onSetSuccess() {}
     override fun onCreateFailure(s: String) {}
     override fun onSetFailure(s: String) {
-        Log.i(null, "Got error: $s")
+        Log.i("SimpleSdpObserver", "Got error: $s")
     }
 }

@@ -19,12 +19,12 @@ import org.avmedia.remotevideocam.utils.ConnectionUtils
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.json.JSONObject
 import org.webrtc.*
+import timber.log.Timber
 
 class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     private val TAG = "WebRtcPeer"
 
     // Constants
-    private val STUN_URL = "stun:stun.l.google.com:19302"
     private val STREAM_ID = "ARDAMS"
     private val AUDIO_TRACK_ID = "101"
     private val CAPTURE_THREAD = "CaptureThread"
@@ -240,14 +240,28 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
 
     private fun initializePeerConnections() {
         val iceServers = ArrayList<PeerConnection.IceServer>()
-        val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
+
+        val rtcConfig =
+                PeerConnection.RTCConfiguration(iceServers).apply {
+                    sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+                    continualGatheringPolicy =
+                            PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+                    iceTransportsType = PeerConnection.IceTransportsType.ALL
+                    candidateNetworkPolicy = PeerConnection.CandidateNetworkPolicy.ALL
+                    iceCandidatePoolSize = 10
+                    bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE
+                    rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE
+                    tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.ENABLED
+                }
+
+        Logging.enableLogToDebugOutput(Logging.Severity.LS_INFO)
 
         peerConnection =
                 factory?.createPeerConnection(
                         rtcConfig,
                         object : PeerConnection.Observer {
                             override fun onIceCandidate(candidate: IceCandidate) {
-                                Log.d(TAG, "Local Server ICE Candidate: ${candidate.sdpMid}")
+                                Log.d(TAG, "Local Server ICE Candidate: ${candidate.sdp}")
                                 val message =
                                         JSONObject().apply {
                                             put("type", TYPE_CANDIDATE)
@@ -261,11 +275,15 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                             override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
                             override fun onIceConnectionChange(
                                     p0: PeerConnection.IceConnectionState?
-                            ) {}
+                            ) {
+                                Log.d(TAG, "Server ICE Connection Change: $p0")
+                            }
                             override fun onIceConnectionReceivingChange(p0: Boolean) {}
                             override fun onIceGatheringChange(
                                     p0: PeerConnection.IceGatheringState?
-                            ) {}
+                            ) {
+                                Log.d(TAG, "Server ICE Gathering Change: $p0")
+                            }
                             override fun onIceCandidatesRemoved(p0: Array<out IceCandidate>?) {}
                             override fun onAddStream(p0: MediaStream?) {}
                             override fun onRemoveStream(p0: MediaStream?) {}
@@ -318,13 +336,18 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                 PeerConnectionFactory.InitializationOptions.builder(context)
                         .setEnableInternalTracer(true)
                         .createInitializationOptions()
+        NetworkMonitor.init(context)
         PeerConnectionFactory.initialize(options)
+
+        val factoryOptions = PeerConnectionFactory.Options().apply { networkIgnoreMask = 0 }
+        Timber.d("All Local IPs: ${org.avmedia.remotevideocam.utils.Utils.getAllMyIPs()}")
 
         val encoderFactory = DefaultVideoEncoderFactory(rootEglBase!!.eglBaseContext, true, true)
         val decoderFactory = DefaultVideoDecoderFactory(rootEglBase!!.eglBaseContext)
 
         factory =
                 PeerConnectionFactory.builder()
+                        .setOptions(factoryOptions)
                         .setVideoEncoderFactory(encoderFactory)
                         .setVideoDecoderFactory(decoderFactory)
                         .createPeerConnectionFactory()
@@ -374,7 +397,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
             subscribe(
                     "WEB_RTC_COMMANDS",
                     Consumer { event ->
-                        val webRtcEvent = event!!.getJSONObject(TO_CAMERA)
+                        val webRtcEvent = event.getJSONObject(TO_CAMERA)
                         val type = webRtcEvent.getString("type")
                         Log.d(TAG, "Server received WebRTC Event: $type")
                         when (type) {
@@ -400,7 +423,10 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                                 )
                             }
                             TYPE_CANDIDATE -> {
-                                Log.d(TAG, "Server received CANDIDATE")
+                                Log.d(
+                                        TAG,
+                                        "Server received CANDIDATE: ${webRtcEvent.getString("candidate")}"
+                                )
                                 val candidate =
                                         IceCandidate(
                                                 webRtcEvent.getString("id"),
@@ -412,7 +438,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                         }
                     },
                     { Log.d(TAG, "Signaling Error: $it") },
-                    { it!!.has(TO_CAMERA) }
+                    { it.has(TO_CAMERA) }
             )
         }
     }
