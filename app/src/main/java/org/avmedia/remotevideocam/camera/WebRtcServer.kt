@@ -17,21 +17,21 @@ import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.subscribe
 import org.avmedia.remotevideocam.utils.AndGate
 import org.avmedia.remotevideocam.utils.ConnectionUtils
 import org.avmedia.remotevideocam.utils.ProgressEvents
+import org.avmedia.remotevideocam.utils.Utils
 import org.json.JSONObject
 import org.webrtc.*
+import timber.log.Timber
 
 class WebRtcServer : IVideoServer, VideoProcessor.Listener {
-    private val TAG = "WebRtcPeer"
+    private val TAG = "WebRtcServer"
 
     // Constants
-    private val STUN_URL = "stun:stun.l.google.com:19302"
     private val STREAM_ID = "ARDAMS"
     private val AUDIO_TRACK_ID = "101"
     private val CAPTURE_THREAD = "CaptureThread"
     private val NATIVE_LIB = "jingle_peerconnection_so"
 
     // Event Keys
-    private val EVENT_WEB_RTC = "WEB_RTC_EVENT"
     private val CMD_VIDEO_PROTOCOL = "VIDEO_PROTOCOL"
     private val CMD_VIDEO_COMMAND = "VIDEO_COMMAND"
     private val TYPE_OFFER = "offer"
@@ -79,7 +79,11 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
         if (rootEglBase == null) {
             rootEglBase = EglBase.create()
         }
-        signalingHandler.handleControllerWebRtcEvents()
+
+        // Subscribe to connection events
+        signalingHandler.handleConnectionEvents()
+        // Subscribe to WebRTC signaling events
+        signalingHandler.handleWebRtcEvents()
 
         createAppEventsSubscription()
     }
@@ -104,7 +108,6 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     override fun setView(view: SurfaceView?) {}
     override fun setView(view: TextureView?) {}
     override fun setView(view: SurfaceViewRenderer?) {
-
         this.view = view
         this.view?.isEnabled = false
         andGate?.set("view set", true)
@@ -194,110 +197,140 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
 
     private fun doCall() {
         val sdpMediaConstraints = MediaConstraints()
-        // Maintain the "false" constraints from your working version
         sdpMediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false")
+            MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false")
         )
         sdpMediaConstraints.mandatory.add(
-                MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false")
+            MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false")
         )
 
         peerConnection?.createOffer(
-                object : SimpleSdpObserver() {
-                    override fun onCreateSuccess(sessionDescription: SessionDescription) {
-                        peerConnection?.setLocalDescription(SimpleSdpObserver(), sessionDescription)
-                        val message =
-                                JSONObject().apply {
-                                    put("type", TYPE_OFFER)
-                                    put("sdp", sessionDescription.description)
-                                }
-                        sendMessage(message)
+            object : SimpleSdpObserver() {
+                override fun onCreateSuccess(sessionDescription: SessionDescription) {
+                    peerConnection?.setLocalDescription(SimpleSdpObserver(), sessionDescription)
+                    val message = JSONObject().apply {
+                        put("type", TYPE_OFFER)
+                        put("sdp", sessionDescription.description)
                     }
-                },
-                sdpMediaConstraints
+                    sendMessage(message)
+                }
+            },
+            sdpMediaConstraints
         )
     }
 
     private fun doAnswer() {
         peerConnection?.createAnswer(
-                object : SimpleSdpObserver() {
-                    override fun onCreateSuccess(sessionDescription: SessionDescription) {
-                        peerConnection?.setLocalDescription(SimpleSdpObserver(), sessionDescription)
-                        val message =
-                                JSONObject().apply {
-                                    put("type", TYPE_ANSWER)
-                                    put("sdp", sessionDescription.description)
-                                }
-                        sendMessage(message)
+            object : SimpleSdpObserver() {
+                override fun onCreateSuccess(sessionDescription: SessionDescription) {
+                    peerConnection?.setLocalDescription(SimpleSdpObserver(), sessionDescription)
+                    val message = JSONObject().apply {
+                        put("type", TYPE_ANSWER)
+                        put("sdp", sessionDescription.description)
                     }
-                },
-                MediaConstraints()
+                    sendMessage(message)
+                }
+            },
+            MediaConstraints()
         )
     }
 
     private fun initializePeerConnections() {
+        // NO ICE servers - strictly local P2P connection
         val iceServers = ArrayList<PeerConnection.IceServer>()
-        val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
+        val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
+            iceTransportsType = PeerConnection.IceTransportsType.ALL
+            bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE
+            rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE
+            continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+        }
 
-        peerConnection =
-                factory?.createPeerConnection(
-                        rtcConfig,
-                        object : PeerConnection.Observer {
-                            override fun onIceCandidate(candidate: IceCandidate) {
-                                Log.d(TAG, "Local Server ICE Candidate: ${candidate.sdpMid}")
-                                val message =
-                                        JSONObject().apply {
-                                            put("type", TYPE_CANDIDATE)
-                                            put("label", candidate.sdpMLineIndex)
-                                            put("id", candidate.sdpMid)
-                                            put("candidate", candidate.sdp)
-                                        }
-                                sendMessage(message)
-                            }
-                            // ... (rest of observer overrides kept empty for brevity)
-                            override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
-                            override fun onIceConnectionChange(
-                                    p0: PeerConnection.IceConnectionState?
-                            ) {}
-                            override fun onIceConnectionReceivingChange(p0: Boolean) {}
-                            override fun onIceGatheringChange(
-                                    p0: PeerConnection.IceGatheringState?
-                            ) {}
-                            override fun onIceCandidatesRemoved(p0: Array<out IceCandidate>?) {}
-                            override fun onAddStream(p0: MediaStream?) {}
-                            override fun onRemoveStream(p0: MediaStream?) {}
-                            override fun onDataChannel(p0: DataChannel?) {}
-                            override fun onRenegotiationNeeded() {}
-                            override fun onAddTrack(
-                                    p0: RtpReceiver?,
-                                    p1: Array<out MediaStream>?
-                            ) {}
-                            override fun onTrack(p0: RtpTransceiver?) {}
+        peerConnection = factory?.createPeerConnection(
+            rtcConfig,
+            object : PeerConnection.Observer {
+                override fun onIceCandidate(candidate: IceCandidate) {
+                    val candidateIp = extractIpFromCandidate(candidate.sdp)
+
+                    Timber.d("Generated ICE Candidate - IP: $candidateIp, SDP: ${candidate.sdp}")
+
+                    if (isValidLocalCandidate(candidateIp)) {
+                        Timber.d("✓ Sending valid local candidate IP: $candidateIp")
+                        val message = JSONObject().apply {
+                            put("type", TYPE_CANDIDATE)
+                            put("label", candidate.sdpMLineIndex)
+                            put("id", candidate.sdpMid)
+                            put("candidate", candidate.sdp)
                         }
-                )
+                        sendMessage(message)
+                    } else {
+                        Timber.d("✗ Filtering out non-local candidate IP: $candidateIp")
+                    }
+                }
+
+                override fun onSignalingChange(state: PeerConnection.SignalingState?) {
+                    Timber.d("Signaling state: $state")
+                }
+
+                override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
+                    Timber.d("ICE connection state: $state")
+                }
+
+                override fun onIceConnectionReceivingChange(receiving: Boolean) {
+                    Timber.d("ICE receiving: $receiving")
+                }
+
+                override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {
+                    Timber.d("ICE gathering state: $state")
+                }
+
+                override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>?) {
+                    Timber.d("ICE candidates removed: ${candidates?.size}")
+                }
+
+                override fun onAddStream(stream: MediaStream?) {
+                    Timber.d("Stream added: ${stream?.id}")
+                }
+
+                override fun onRemoveStream(stream: MediaStream?) {
+                    Timber.d("Stream removed: ${stream?.id}")
+                }
+
+                override fun onDataChannel(dataChannel: DataChannel?) {}
+
+                override fun onRenegotiationNeeded() {
+                    Timber.d("Renegotiation needed")
+                }
+
+                override fun onAddTrack(receiver: RtpReceiver?, streams: Array<out MediaStream>?) {
+                    Timber.d("Track added: ${receiver?.track()?.kind()}")
+                }
+
+                override fun onTrack(transceiver: RtpTransceiver?) {
+                    Timber.d("Track: ${transceiver?.receiver?.track()?.kind()}")
+                }
+            }
+        )
     }
+
     private fun createVideoTrackFromCameraAndShowIt() {
         videoCapturer = createVideoCapturer()
         val source = factory!!.createVideoSource(videoCapturer!!.isScreencast)
         videoSource = source
 
-        val newMotionProcessor =
-                VideoProcessor().also {
-                    this.motionProcessor?.release()
-                    this.motionProcessor = it
-                }
+        val newMotionProcessor = VideoProcessor().also {
+            this.motionProcessor?.release()
+            this.motionProcessor = it
+        }
         source.setVideoProcessor(VideoProcessorImpl(newMotionProcessor))
 
-        surfaceTextureHelper =
-                SurfaceTextureHelper.create(CAPTURE_THREAD, rootEglBase!!.eglBaseContext)
+        surfaceTextureHelper = SurfaceTextureHelper.create(CAPTURE_THREAD, rootEglBase!!.eglBaseContext)
         videoCapturer!!.initialize(surfaceTextureHelper, context, source.capturerObserver)
         videoCapturer!!.startCapture(VIDEO_RESOLUTION_WIDTH, VIDEO_RESOLUTION_HEIGHT, FPS)
 
-        videoTrackFromCamera =
-                factory!!.createVideoTrack(VIDEO_TRACK_ID, source).apply {
-                    setEnabled(true)
-                    addSink(view)
-                }
+        videoTrackFromCamera = factory!!.createVideoTrack(VIDEO_TRACK_ID, source).apply {
+            setEnabled(true)
+            addSink(view)
+        }
 
         audioSource = factory!!.createAudioSource(MediaConstraints())
         localAudioTrack = factory!!.createAudioTrack(AUDIO_TRACK_ID, audioSource)
@@ -310,20 +343,18 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
             Log.e(TAG, "Native library failed to load")
         }
 
-        val options =
-                PeerConnectionFactory.InitializationOptions.builder(context)
-                        .setEnableInternalTracer(true)
-                        .createInitializationOptions()
+        val options = PeerConnectionFactory.InitializationOptions.builder(context)
+            .setEnableInternalTracer(true)
+            .createInitializationOptions()
         PeerConnectionFactory.initialize(options)
 
         val encoderFactory = DefaultVideoEncoderFactory(rootEglBase!!.eglBaseContext, true, true)
         val decoderFactory = DefaultVideoDecoderFactory(rootEglBase!!.eglBaseContext)
 
-        factory =
-                PeerConnectionFactory.builder()
-                        .setVideoEncoderFactory(encoderFactory)
-                        .setVideoDecoderFactory(decoderFactory)
-                        .createPeerConnectionFactory()
+        factory = PeerConnectionFactory.builder()
+            .setVideoEncoderFactory(encoderFactory)
+            .setVideoDecoderFactory(decoderFactory)
+            .createPeerConnectionFactory()
     }
 
     private fun initializeSurfaceViews() {
@@ -341,148 +372,187 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
         val sharedPref = context?.getSharedPreferences("CameraPrefs", Context.MODE_PRIVATE)
         val useFrontCamera = sharedPref?.getBoolean("UseFrontCamera", false) ?: false
 
-        val enumerator =
-                if (Camera2Enumerator.isSupported(context)) Camera2Enumerator(context)
-                else Camera1Enumerator(true)
+        val enumerator = if (Camera2Enumerator.isSupported(context)) {
+            Camera2Enumerator(context)
+        } else {
+            Camera1Enumerator(true)
+        }
 
-        // Try to find the preferred camera
+        // Try preferred camera
         for (name in enumerator.deviceNames) {
             if (enumerator.isFrontFacing(name) == useFrontCamera) {
                 return enumerator.createCapturer(name, null)
             }
         }
 
-        // Fallback
+        // Fallback to back camera
         for (name in enumerator.deviceNames) {
-            if (enumerator.isBackFacing(name)) return enumerator.createCapturer(name, null)
+            if (enumerator.isBackFacing(name)) {
+                return enumerator.createCapturer(name, null)
+            }
         }
         return null
     }
 
     private fun sendMessage(message: JSONObject) {
-        val json = JSONObject()
-        json.put(TO_DISPLAY, message)
+        // Add sender's real WiFi Direct IP address
+        val myRealIp = Utils.getMyIP()
+        message.put("senderRealIp", myRealIp)
+
+        Timber.d(">>> Sending ${message.optString("type")} with senderRealIp: $myRealIp")
+
+        val json = JSONObject().apply {
+            put(TO_DISPLAY, message)
+        }
         emitEvent(json)
     }
 
+    private fun extractIpFromCandidate(sdp: String): String {
+        val parts = sdp.split(" ")
+        return if (parts.size > 4) parts[4] else ""
+    }
+
+    private fun isValidLocalCandidate(ip: String): Boolean {
+        return when {
+            ip.isEmpty() -> false
+            ip.startsWith("192.168.49.") -> true  // WiFi Direct
+            ip.startsWith("192.168.") && !ip.startsWith("192.0.0.") -> true
+            ip.startsWith("10.") -> true
+            ip.startsWith("172.") -> {
+                val secondOctet = ip.split(".").getOrNull(1)?.toIntOrNull() ?: 0
+                secondOctet in 16..31
+            }
+            ip.startsWith("169.254.") -> true  // Link-local
+            else -> false
+        }
+    }
+
+    private fun replaceCandidateIp(candidateSdp: String, newIp: String): String {
+        val parts = candidateSdp.split(" ").toMutableList()
+        if (parts.size > 4) {
+            parts[4] = newIp
+        }
+        return parts.joinToString(" ")
+    }
+
     internal inner class SignalingHandler {
-        fun handleControllerWebRtcEvents() {
+
+        fun handleConnectionEvents() {
             subscribe(
-                    "WEB_RTC_COMMANDS",
-                    Consumer { event ->
-                        val webRtcEvent = event!!.getJSONObject(TO_CAMERA)
-                        val type = webRtcEvent.getString("type")
-                        Log.d(TAG, "Server received WebRTC Event: $type")
-                        when (type) {
-                            TYPE_OFFER -> {
-                                Log.d(TAG, "Server received OFFER")
-                                peerConnection?.setRemoteDescription(
-                                        SimpleSdpObserver(),
-                                        SessionDescription(
-                                                SessionDescription.Type.OFFER,
-                                                webRtcEvent.getString("sdp")
-                                        )
-                                )
-                                doAnswer()
+                "CONNECTION_EVENTS",
+                Consumer { event ->
+                    event?.takeIf { it.has("command") }?.let {
+                        when (event.getString("command")) {
+                            "CONNECTED" -> {
+                                Timber.d("WiFi Direct CONNECTED")
+                                ProgressEvents.onNext(ProgressEvents.Events.ConnectionCameraSuccessful)
+                                setConnected(true)
+                                startClient()
                             }
-                            TYPE_ANSWER -> {
-                                Log.d(TAG, "Server received ANSWER")
-                                peerConnection?.setRemoteDescription(
-                                        SimpleSdpObserver(),
-                                        SessionDescription(
-                                                SessionDescription.Type.ANSWER,
-                                                webRtcEvent.getString("sdp")
-                                        )
-                                )
-                            }
-                            TYPE_CANDIDATE -> {
-
-                                // 2. THE FIX for WiFi direct without local WiFi: When you receive a candidate, or right after the Offer/Answer,
-                                // manually inject the Peer's IP address.
-                                fun handleCandidate_WiFiDirect(json: JSONObject) {
-                                    val candidateStr = json.getString("candidate")
-
-                                    // Check if the candidate we received is the "bad" one
-                                    val finalizedCandidate = if (candidateStr.contains("192.0.0.")) {
-                                        // Log it so you know it's happening
-                                        Log.w(TAG, "Intercepted bad candidate, swapping with known P2P IP")
-
-                                        // Construct a manual candidate string using the known P2P IP
-                                        // (The Group Owner is ALWAYS 192.168.49.1)
-                                        "candidate:1 1 UDP 2122260223 192.168.49.1 50000 typ host"
-                                    } else {
-                                        candidateStr
-                                    }
-
-                                    val candidate = IceCandidate(
-                                        json.getString("id"),
-                                        json.getInt("label"),
-                                        finalizedCandidate
-                                    )
-                                    peerConnection?.addIceCandidate(candidate)
-                                }
-
-                                fun handleCandidate(json: JSONObject) {
-                                    Log.d(TAG, "Server received CANDIDATE")
-                                    val candidate =
-                                        IceCandidate(
-                                            webRtcEvent.getString("id"),
-                                            webRtcEvent.getInt("label"),
-                                            webRtcEvent.getString("candidate")
-                                        )
-                                    peerConnection?.addIceCandidate(candidate)
-                                }
-
-                                handleCandidate(webRtcEvent)
+                            "DISCONNECTED" -> {
+                                Timber.d("WiFi Direct DISCONNECTED")
+                                ProgressEvents.onNext(ProgressEvents.Events.CameraDisconnected)
+                                setConnected(false)
                             }
                         }
-                    },
-                    { Log.d(TAG, "Signaling Error: $it") },
-                    { it!!.has(TO_CAMERA) }
+                    }
+                },
+                { error -> Timber.e("Connection event error: $error") },
+                { it?.has("command") == true }
+            )
+        }
+
+        fun handleWebRtcEvents() {
+            subscribe(
+                "WEBRTC_SIGNALING",
+                Consumer { event ->
+                    Timber.d("<<< Received event with keys: ${event?.keys()?.asSequence()?.toList()}")
+
+                    val webRtcEvent = event?.getJSONObject(TO_CAMERA) ?: return@Consumer
+                    val type = webRtcEvent.getString("type")
+
+                    Timber.d("<<< Processing WebRTC $type")
+
+                    when (type) {
+                        TYPE_OFFER -> {
+                            Timber.d("Received OFFER")
+                            peerConnection?.setRemoteDescription(
+                                SimpleSdpObserver(),
+                                SessionDescription(SessionDescription.Type.OFFER, webRtcEvent.getString("sdp"))
+                            )
+                            doAnswer()
+                        }
+
+                        TYPE_ANSWER -> {
+                            Timber.d("Received ANSWER")
+                            peerConnection?.setRemoteDescription(
+                                SimpleSdpObserver(),
+                                SessionDescription(SessionDescription.Type.ANSWER, webRtcEvent.getString("sdp"))
+                            )
+                        }
+
+                        TYPE_CANDIDATE -> {
+                            val candidateSdp = webRtcEvent.getString("candidate")
+                            val senderIp = webRtcEvent.optString("senderRealIp", "")
+                            val candidateIp = extractIpFromCandidate(candidateSdp)
+
+                            Timber.d("Received CANDIDATE - candidateIp: $candidateIp, senderRealIp: $senderIp")
+
+                            val finalCandidateSdp = if (!isValidLocalCandidate(candidateIp) &&
+                                senderIp.isNotEmpty() &&
+                                isValidLocalCandidate(senderIp)) {
+                                Timber.d("✓ Fixing candidate: $candidateIp -> $senderIp")
+                                replaceCandidateIp(candidateSdp, senderIp)
+                            } else if (isValidLocalCandidate(candidateIp)) {
+                                Timber.d("✓ Using candidate as-is: $candidateIp")
+                                candidateSdp
+                            } else {
+                                Timber.w("✗ Ignoring invalid candidate: $candidateIp")
+                                null
+                            }
+
+                            finalCandidateSdp?.let {
+                                val candidate = IceCandidate(
+                                    webRtcEvent.getString("id"),
+                                    webRtcEvent.getInt("label"),
+                                    it
+                                )
+                                peerConnection?.addIceCandidate(candidate)
+                            }
+                        }
+                    }
+                },
+                { error -> Timber.e("WebRTC signaling error: $error") },
+                { it?.has(TO_CAMERA) == true }
             )
         }
     }
 
     @SuppressLint("LogNotTimber")
     private fun createAppEventsSubscription(): Disposable =
-            ProgressEvents.connectionEventFlowable
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(
-                            { event ->
-                                if (event == ProgressEvents.Events.FlipCamera) {
-                                    (videoCapturer as? CameraVideoCapturer)?.switchCamera(
-                                            object : CameraVideoCapturer.CameraSwitchHandler {
-                                                override fun onCameraSwitchDone(
-                                                        isFrontCamera: Boolean
-                                                ) {
-                                                    val sharedPref =
-                                                            context?.getSharedPreferences(
-                                                                    "CameraPrefs",
-                                                                    Context.MODE_PRIVATE
-                                                            )
-                                                    with(sharedPref?.edit()) {
-                                                        this?.putBoolean(
-                                                                "UseFrontCamera",
-                                                                isFrontCamera
-                                                        )
-                                                        this?.apply()
-                                                    }
-                                                }
-
-                                                override fun onCameraSwitchError(
-                                                        errorDescription: String?
-                                                ) {
-                                                    Log.d(
-                                                            TAG,
-                                                            "Camera Switch Error: $errorDescription"
-                                                    )
-                                                }
-                                            }
-                                    )
+        ProgressEvents.connectionEventFlowable
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(
+                { event ->
+                    if (event == ProgressEvents.Events.FlipCamera) {
+                        (videoCapturer as? CameraVideoCapturer)?.switchCamera(
+                            object : CameraVideoCapturer.CameraSwitchHandler {
+                                override fun onCameraSwitchDone(isFrontCamera: Boolean) {
+                                    context?.getSharedPreferences("CameraPrefs", Context.MODE_PRIVATE)
+                                        ?.edit()
+                                        ?.putBoolean("UseFrontCamera", isFrontCamera)
+                                        ?.apply()
                                 }
-                            },
-                            { Log.d(TAG, "Event Error: $it") }
-                    )
+
+                                override fun onCameraSwitchError(errorDescription: String?) {
+                                    Log.d(TAG, "Camera switch error: $errorDescription")
+                                }
+                            }
+                        )
+                    }
+                },
+                { Log.d(TAG, "Event error: $it") }
+            )
 
     companion object {
         const val VIDEO_TRACK_ID = "ARDAMSv0"
