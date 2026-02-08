@@ -89,7 +89,6 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
         get() = isInitialized
 
     override fun startClient() {
-        println(">>> Start client called")
         emitEvent(ConnectionUtils.createStatus(CMD_VIDEO_PROTOCOL, "WEBRTC"))
         sendServerUrl()
         emitEvent(ConnectionUtils.createStatus(CMD_VIDEO_COMMAND, "START"))
@@ -106,8 +105,6 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     override fun setView(view: SurfaceView?) {}
     override fun setView(view: TextureView?) {}
     override fun setView(view: SurfaceViewRenderer?) {
-        println(">>> setView called")
-
         this.view = view
         this.view?.isEnabled = false
         andGate?.set("view set", true)
