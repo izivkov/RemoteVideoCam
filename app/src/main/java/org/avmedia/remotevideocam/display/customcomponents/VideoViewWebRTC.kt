@@ -20,6 +20,7 @@ import org.avmedia.remotevideocam.common.ILocalConnection
 import org.avmedia.remotevideocam.display.CameraStatusEventBus
 import org.avmedia.remotevideocam.display.NetworkServiceConnection
 import org.avmedia.remotevideocam.utils.ProgressEvents
+import org.avmedia.remotevideocam.utils.Utils
 import org.json.JSONException
 import org.json.JSONObject
 import org.webrtc.*
@@ -35,6 +36,7 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
     private val connection: ILocalConnection = NetworkServiceConnection
     private var mirrorState = false
     private val disposables = CompositeDisposable()
+    private var remoteValidIp: String? = null
 
     companion object {
         private const val TAG = "VideoViewWebRTC"
@@ -107,8 +109,20 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
         initializeSurfaceViews()
         initializePeerConnectionFactory()
         initializePeerConnections()
+        sendDeviceInfo()
 
         show()
+    }
+
+    private fun sendDeviceInfo() {
+        // val ipAddress = ConnectionUtils.getIPAddress(true)
+        val ipAddress = Utils.getMyIP()
+        val message =
+                JSONObject().apply {
+                    put("type", "DEVICE_INFO")
+                    put("ip_address", ipAddress)
+                }
+        sendMessage(message)
     }
 
     private fun stop() {
@@ -262,16 +276,20 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                     ) {}
 
                     override fun onIceCandidate(iceCandidate: IceCandidate) {
-                        Timber.d("Local ICE Candidate: ${iceCandidate.sdpMid}")
-                        val message = JSONObject()
-                        try {
-                            message.put("type", "candidate")
-                            message.put("label", iceCandidate.sdpMLineIndex)
-                            message.put("id", iceCandidate.sdpMid)
-                            message.put("candidate", iceCandidate.sdp)
-                            sendMessage(message)
-                        } catch (e: JSONException) {
-                            e.printStackTrace()
+                        if (isValidCandidate(iceCandidate, remoteValidIp)) {
+                            Timber.d("Local ICE Candidate: ${iceCandidate.sdpMid}")
+                            val message = JSONObject()
+                            try {
+                                message.put("type", "candidate")
+                                message.put("label", iceCandidate.sdpMLineIndex)
+                                message.put("id", iceCandidate.sdpMid)
+                                message.put("candidate", iceCandidate.sdp)
+                                sendMessage(message)
+                            } catch (e: JSONException) {
+                                e.printStackTrace()
+                            }
+                        } else {
+                            Timber.d("Filtering out irrelevant candidate: ${iceCandidate.sdp}")
                         }
                     }
 
@@ -352,6 +370,7 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
     }
 
     private fun sendMessage(message: JSONObject) {
+        println(">>> Sending message: $message")
         val eventMessage = JSONObject()
         eventMessage.put("to_camera_webrtc", message)
         org.avmedia.remotevideocam.camera.CameraToDisplayEventBus.emitEvent(eventMessage)
@@ -403,11 +422,16 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                     doAnswer()
                 }
                 "candidate" -> {
+                    val sdp =
+                            Utils.replaceInvalidIp(
+                                    webRtcEvent.getString("candidate"),
+                                    remoteValidIp
+                            )
                     val candidate =
                             IceCandidate(
                                     webRtcEvent.getString("id"),
                                     webRtcEvent.getInt("label"),
-                                    webRtcEvent.getString("candidate")
+                                    sdp
                             )
                     peerConnection?.addIceCandidate(candidate)
                 }
@@ -415,7 +439,23 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                     Timber.i("got bye")
                     stop()
                 }
+                "DEVICE_INFO" -> {
+                    if (webRtcEvent.has("ip_address")) {
+                        remoteValidIp = webRtcEvent.getString("ip_address")
+                        Timber.d(">>>>>>>>>>>>>>>>> Received Remote IP: $remoteValidIp")
+                    }
+                }
             }
         }
+    }
+
+    private fun isValidCandidate(candidate: IceCandidate, targetIp: String?): Boolean {
+        if (targetIp == null || targetIp.isEmpty()) return true
+        val lastDot = targetIp.lastIndexOf('.')
+        if (lastDot > 0) {
+            val prefix = targetIp.substring(0, lastDot)
+            return candidate.sdp.contains(prefix)
+        }
+        return true
     }
 }

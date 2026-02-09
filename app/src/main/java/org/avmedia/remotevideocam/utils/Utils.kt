@@ -89,7 +89,9 @@ object Utils {
                 val longIp = ipAddress.toLong()
                 val byteIp = BigInteger.valueOf(longIp).toByteArray().reversedArray()
                 val ipAddr = InetAddress.getByAddress(byteIp).hostAddress
-                ips.add(ipAddr)
+                if (ipAddr != null) {
+                    ips.add(ipAddr)
+                }
             }
 
             // Priority 2: Network interfaces (more robust)
@@ -99,7 +101,7 @@ object Utils {
                 for (addr in iface.inetAddresses) {
                     if (addr is java.net.Inet4Address) {
                         addr.hostAddress?.let { host ->
-                            if (host != "127.0.0.1" && !ips.contains(host)) {
+                            if (host != "127.0.0.1" && !ips.contains(host) && host.startsWith("192.0.0.").not()) {
                                 ips.add(host)
                             }
                         }
@@ -110,6 +112,27 @@ object Utils {
             Timber.e(e, "Error getting IP addresses")
         }
         return ips
+    }
+
+    fun replaceInvalidIp(candidate: String, validIp: String?): String {
+        if (validIp.isNullOrEmpty()) return candidate
+
+        // Regex to capture an IPv4 address
+        val ipV4Regex = Regex("\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b")
+
+        return ipV4Regex.replace(candidate) { matchResult ->
+            val ip = matchResult.value
+            if (isIpInvalid(ip)) {
+                Timber.d("Replaced invalid IP $ip with $validIp")
+                validIp
+            } else {
+                ip
+            }
+        }
+    }
+
+    private fun isIpInvalid(ip: String): Boolean {
+        return ip.startsWith("192.0.0.") || ip.startsWith("127.") || ip == "0.0.0.0"
     }
 
     fun toast(context: Context, message: String) {

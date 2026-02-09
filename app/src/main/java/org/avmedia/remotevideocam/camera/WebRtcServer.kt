@@ -17,8 +17,10 @@ import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.subscribe
 import org.avmedia.remotevideocam.utils.AndGate
 import org.avmedia.remotevideocam.utils.ConnectionUtils
 import org.avmedia.remotevideocam.utils.ProgressEvents
+import org.avmedia.remotevideocam.utils.Utils
 import org.json.JSONObject
 import org.webrtc.*
+import timber.log.Timber
 
 class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     private val TAG = "WebRtcPeer"
@@ -37,6 +39,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     private val TYPE_OFFER = "offer"
     private val TYPE_ANSWER = "answer"
     private val TYPE_CANDIDATE = "candidate"
+    private val TYPE_DEVICE_INFO = "DEVICE_INFO"
 
     private val TO_DISPLAY = "to_display_webrtc"
     private val TO_CAMERA = "to_camera_webrtc"
@@ -59,11 +62,11 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     private var videoCapturer: VideoCapturer? = null
     private var videoSource: VideoSource? = null
     private var motionProcessor: VideoProcessor? = null
+    private var remoteValidIp: String? = null
 
     private var isInitialized = false
 
     override fun init(context: Context?) {
-        println(">>> init called")
         if (isInitialized) return
         isInitialized = true
 
@@ -91,7 +94,18 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     override fun startClient() {
         emitEvent(ConnectionUtils.createStatus(CMD_VIDEO_PROTOCOL, "WEBRTC"))
         sendServerUrl()
+        sendDeviceInfo()
         emitEvent(ConnectionUtils.createStatus(CMD_VIDEO_COMMAND, "START"))
+    }
+
+    private fun sendDeviceInfo() {
+        val ipAddress = Utils.getMyIP()
+        val message =
+                JSONObject().apply {
+                    put("type", TYPE_DEVICE_INFO)
+                    put("ip_address", ipAddress)
+                }
+        sendMessage(message)
     }
 
     override fun sendServerUrl() {
@@ -244,15 +258,19 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                         rtcConfig,
                         object : PeerConnection.Observer {
                             override fun onIceCandidate(candidate: IceCandidate) {
-                                Log.d(TAG, "Local Server ICE Candidate: ${candidate.sdpMid}")
-                                val message =
-                                        JSONObject().apply {
-                                            put("type", TYPE_CANDIDATE)
-                                            put("label", candidate.sdpMLineIndex)
-                                            put("id", candidate.sdpMid)
-                                            put("candidate", candidate.sdp)
-                                        }
-                                sendMessage(message)
+                                if (isValidCandidate(candidate, remoteValidIp)) {
+                                    Log.d(TAG, "Local Server ICE Candidate: ${candidate.sdpMid}")
+                                    val message =
+                                            JSONObject().apply {
+                                                put("type", TYPE_CANDIDATE)
+                                                put("label", candidate.sdpMLineIndex)
+                                                put("id", candidate.sdpMid)
+                                                put("candidate", Utils.replaceInvalidIp(candidate.sdp, Utils.getMyIP()))
+                                            }
+                                    sendMessage(message)
+                                } else {
+                                    Timber.d("Filtering out irrelevant candidate: ${candidate.sdp}")
+                                }
                             }
                             // ... (rest of observer overrides kept empty for brevity)
                             override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
@@ -398,13 +416,24 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                             }
                             TYPE_CANDIDATE -> {
                                 Log.d(TAG, "Server received CANDIDATE")
+                                val sdp =
+                                        Utils.replaceInvalidIp(
+                                                webRtcEvent.getString("candidate"),
+                                                remoteValidIp
+                                        )
                                 val candidate =
                                         IceCandidate(
                                                 webRtcEvent.getString("id"),
                                                 webRtcEvent.getInt("label"),
-                                                webRtcEvent.getString("candidate")
+                                                sdp
                                         )
                                 peerConnection?.addIceCandidate(candidate)
+                            }
+                            TYPE_DEVICE_INFO -> {
+                                if (webRtcEvent.has("ip_address")) {
+                                    remoteValidIp = webRtcEvent.getString("ip_address")
+                                    println(">>> WebRTC: Received Remote IP: $remoteValidIp")
+                                }
                             }
                         }
                     },
@@ -460,6 +489,19 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
         const val VIDEO_RESOLUTION_WIDTH = 640
         const val VIDEO_RESOLUTION_HEIGHT = 360
         const val FPS = 30
+    }
+
+    private fun isValidCandidate(candidate: IceCandidate, targetIp: String?): Boolean {
+        if (targetIp == null || targetIp.isEmpty()) return true // No filter if IP unknown
+
+        // Simple subnet check (assuming /24 for simplicity, or just matching prefix)
+        // If targetIp is 192.168.49.1, we want candidates that have 192.168.49.
+        val lastDot = targetIp.lastIndexOf('.')
+        if (lastDot > 0) {
+            val prefix = targetIp.substring(0, lastDot)
+            return candidate.sdp.contains(prefix)
+        }
+        return true
     }
 
     override fun onDetectionResult(detected: Boolean) {}
