@@ -58,7 +58,7 @@ class LocalConnectionSocketHandler(
             return createClientInfo(client!!)
         } catch (e: Exception) {
             if (!stopped) {
-            Timber.e("Wait for connection failed: ${e.message}")
+                Timber.e("Wait for connection failed: ${e.message}")
             }
             return null
         } finally {
@@ -100,7 +100,7 @@ class LocalConnectionSocketHandler(
     private fun runReceiver(reader: Scanner) {
         try {
             while (reader.hasNextLine()) {
-                val msg = reader.nextLine().trim { it <= ' ' }
+                val msg = reader.nextLine().trim()
                 if (!stopped) {
                     (context as? Activity)?.runOnUiThread {
                         dataReceivedCallback()?.dataReceived(msg)

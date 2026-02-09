@@ -1,6 +1,7 @@
 package org.avmedia.remotevideocam.utils
 
 import android.content.Context
+import androidx.core.content.edit
 import org.avmedia.remotevideocam.MainApplication
 
 object LocalDataStorage {
@@ -12,10 +13,7 @@ object LocalDataStorage {
     fun saveConnectionType(type: String) {
         val context = MainApplication.applicationContext()
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        with(sharedPreferences.edit()) {
-            putString(CONNECTION_TYPE_KEY, type)
-            apply()
-        }
+        sharedPreferences.edit { putString(CONNECTION_TYPE_KEY, type) }
     }
 
     fun getConnectionType(): String? {
@@ -27,10 +25,7 @@ object LocalDataStorage {
     fun saveMuted(muted: Boolean) {
         val context = MainApplication.applicationContext()
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        with(sharedPreferences.edit()) {
-            putBoolean(IS_MUTED_KEY, muted)
-            apply()
-        }
+        sharedPreferences.edit { putBoolean(IS_MUTED_KEY, muted) }
     }
 
     fun isMuted(): Boolean {
@@ -42,10 +37,7 @@ object LocalDataStorage {
     fun saveMirrored(mirrored: Boolean) {
         val context = MainApplication.applicationContext()
         val sharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        with(sharedPreferences.edit()) {
-            putBoolean(IS_MIRRORED_KEY, mirrored)
-            apply()
-        }
+        sharedPreferences.edit { putBoolean(IS_MIRRORED_KEY, mirrored) }
     }
 
     fun isMirrored(): Boolean {

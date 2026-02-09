@@ -1,5 +1,6 @@
 package org.avmedia.remotevideocam.ui.viewmodel
 
+import androidx.core.content.edit
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +29,11 @@ class MainViewModel : ViewModel() {
 
     private val _isMirrored = MutableStateFlow(false)
     val isMirrored: StateFlow<Boolean> = _isMirrored.asStateFlow()
+
+    init {
+        loadSoundState()
+        loadMirrorState()
+    }
 
     fun navigateTo(screen: Screen) {
         _currentScreen.value = screen
@@ -68,9 +74,40 @@ class MainViewModel : ViewModel() {
 
     fun toggleMute() {
         _isMuted.value = !_isMuted.value
+        saveSoundState(_isMuted.value)
     }
 
     fun toggleMirror() {
         _isMirrored.value = !_isMirrored.value
+        saveMirrorState(_isMirrored.value)
+    }
+
+    private fun loadSoundState() {
+        val context = org.avmedia.remotevideocam.MainActivity.applicationContext()
+        val sharedPref =
+                context.getSharedPreferences("SoundPrefs", android.content.Context.MODE_PRIVATE)
+        val stateName = sharedPref.getString("SoundState", "OFF")
+        _isMuted.value = stateName == "OFF"
+    }
+
+    private fun saveSoundState(isMuted: Boolean) {
+        val context = org.avmedia.remotevideocam.MainActivity.applicationContext()
+        val sharedPref =
+                context.getSharedPreferences("SoundPrefs", android.content.Context.MODE_PRIVATE)
+        sharedPref.edit { putString("SoundState", if (isMuted) "OFF" else "ON") }
+    }
+
+    private fun loadMirrorState() {
+        val context = org.avmedia.remotevideocam.MainActivity.applicationContext()
+        val sharedPref =
+                context.getSharedPreferences("MirrorPrefs", android.content.Context.MODE_PRIVATE)
+        _isMirrored.value = sharedPref.getBoolean("MirrorState", false)
+    }
+
+    private fun saveMirrorState(isMirrored: Boolean) {
+        val context = org.avmedia.remotevideocam.MainActivity.applicationContext()
+        val sharedPref =
+                context.getSharedPreferences("MirrorPrefs", android.content.Context.MODE_PRIVATE)
+        sharedPref.edit { putBoolean("MirrorState", isMirrored) }
     }
 }

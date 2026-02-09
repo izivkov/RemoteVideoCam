@@ -4,11 +4,11 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
-import android.util.Log
 import android.util.Size
 import android.view.SurfaceView
 import android.view.TextureView
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
@@ -19,9 +19,9 @@ import org.avmedia.remotevideocam.utils.ConnectionUtils
 import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.json.JSONObject
 import org.webrtc.*
+import timber.log.Timber
 
 class WebRtcServer : IVideoServer, VideoProcessor.Listener {
-    private val TAG = "WebRtcPeer"
 
     // Constants
     private val STUN_URL = "stun:stun.l.google.com:19302"
@@ -63,7 +63,6 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     private var isInitialized = false
 
     override fun init(context: Context?) {
-        println(">>> init called")
         if (isInitialized) return
         isInitialized = true
 
@@ -89,7 +88,6 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
         get() = isInitialized
 
     override fun startClient() {
-        println(">>> Start client called")
         emitEvent(ConnectionUtils.createStatus(CMD_VIDEO_PROTOCOL, "WEBRTC"))
         sendServerUrl()
         emitEvent(ConnectionUtils.createStatus(CMD_VIDEO_COMMAND, "START"))
@@ -106,8 +104,6 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     override fun setView(view: SurfaceView?) {}
     override fun setView(view: TextureView?) {}
     override fun setView(view: SurfaceViewRenderer?) {
-        println(">>> setView called")
-
         this.view = view
         this.view?.isEnabled = false
         andGate?.set("view set", true)
@@ -161,7 +157,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
         try {
             videoCapturer?.stopCapture()
         } catch (e: InterruptedException) {
-            Log.e(TAG, "Failed to stop video capturer", e)
+            Timber.e(e, "Failed to stop video capturer")
         }
         videoCapturer?.dispose()
         videoCapturer = null
@@ -247,7 +243,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                         rtcConfig,
                         object : PeerConnection.Observer {
                             override fun onIceCandidate(candidate: IceCandidate) {
-                                Log.d(TAG, "Local Server ICE Candidate: ${candidate.sdpMid}")
+                                Timber.d("Local Server ICE Candidate: ${candidate.sdpMid}")
                                 val message =
                                         JSONObject().apply {
                                             put("type", TYPE_CANDIDATE)
@@ -311,7 +307,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
         try {
             System.loadLibrary(NATIVE_LIB)
         } catch (e: UnsatisfiedLinkError) {
-            Log.e(TAG, "Native library failed to load")
+            Timber.e("Native library failed to load")
         }
 
         val options =
@@ -335,7 +331,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
         try {
             currentView.release()
         } catch (e: Exception) {
-            Log.d(TAG, "View already released")
+            Timber.d("View already released")
         }
         currentView.init(rootEglBase!!.eglBaseContext, null)
         currentView.setEnableHardwareScaler(true)
@@ -376,10 +372,10 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                     Consumer { event ->
                         val webRtcEvent = event!!.getJSONObject(TO_CAMERA)
                         val type = webRtcEvent.getString("type")
-                        Log.d(TAG, "Server received WebRTC Event: $type")
+                        Timber.d("Server received WebRTC Event: $type")
                         when (type) {
                             TYPE_OFFER -> {
-                                Log.d(TAG, "Server received OFFER")
+                                Timber.d("Server received OFFER")
                                 peerConnection?.setRemoteDescription(
                                         SimpleSdpObserver(),
                                         SessionDescription(
@@ -390,7 +386,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                                 doAnswer()
                             }
                             TYPE_ANSWER -> {
-                                Log.d(TAG, "Server received ANSWER")
+                                Timber.d("Server received ANSWER")
                                 peerConnection?.setRemoteDescription(
                                         SimpleSdpObserver(),
                                         SessionDescription(
@@ -400,7 +396,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                                 )
                             }
                             TYPE_CANDIDATE -> {
-                                Log.d(TAG, "Server received CANDIDATE")
+                                Timber.d("Server received CANDIDATE")
                                 val candidate =
                                         IceCandidate(
                                                 webRtcEvent.getString("id"),
@@ -411,7 +407,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                             }
                         }
                     },
-                    { Log.d(TAG, "Signaling Error: $it") },
+                    { Timber.d("Signaling Error: $it") },
                     { it!!.has(TO_CAMERA) }
             )
         }
@@ -434,20 +430,15 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                                                                     "CameraPrefs",
                                                                     Context.MODE_PRIVATE
                                                             )
-                                                    with(sharedPref?.edit()) {
-                                                        this?.putBoolean(
-                                                                "UseFrontCamera",
-                                                                isFrontCamera
-                                                        )
-                                                        this?.apply()
+                                                    sharedPref?.edit {
+                                                        putBoolean("UseFrontCamera", isFrontCamera)
                                                     }
                                                 }
 
                                                 override fun onCameraSwitchError(
                                                         errorDescription: String?
                                                 ) {
-                                                    Log.d(
-                                                            TAG,
+                                                    Timber.d(
                                                             "Camera Switch Error: $errorDescription"
                                                     )
                                                 }
@@ -455,7 +446,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                                     )
                                 }
                             },
-                            { Log.d(TAG, "Event Error: $it") }
+                            { Timber.d("Event Error: $it") }
                     )
 
     companion object {

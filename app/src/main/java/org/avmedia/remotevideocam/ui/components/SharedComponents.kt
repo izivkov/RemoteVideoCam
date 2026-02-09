@@ -54,9 +54,9 @@ fun AnimatedEntrance(delay: Int = 0, content: @Composable () -> Unit) {
 @Composable
 fun ModernHeader(
         title: String,
+        modifier: Modifier = Modifier,
         subtitle: String? = null,
-        icon: ImageVector? = null,
-        modifier: Modifier = Modifier
+        icon: ImageVector? = null
 ) {
         Column(
                 modifier = modifier.fillMaxWidth().padding(vertical = 32.dp),

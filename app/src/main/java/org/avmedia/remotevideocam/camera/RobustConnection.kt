@@ -1,5 +1,6 @@
 package org.avmedia.remotevideocam.camera
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.os.Handler
@@ -18,7 +19,7 @@ class RobustConnection(
     private var dataReceivedCallback: IDataReceived? = null
 
     private val wifiAwareConnection =
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
                 WiFiAwareServiceConnection(isVideoCapable)
             } else {
                 null
@@ -55,7 +56,9 @@ class RobustConnection(
     override fun init(context: Context?) {
         this.context = context
         networkConnection.init(context)
-        wifiAwareConnection?.init(context)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            wifiAwareConnection?.init(context)
+        }
         wifiDirectConnection.init(context)
 
         handler.postDelayed(reconnectionWatchdog, 5000L)
@@ -64,7 +67,9 @@ class RobustConnection(
     override fun setDataCallback(dataCallback: IDataReceived?) {
         this.dataReceivedCallback = dataCallback
         networkConnection.setDataCallback(dataCallback)
-        wifiAwareConnection?.setDataCallback(dataCallback)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            wifiAwareConnection?.setDataCallback(dataCallback)
+        }
         wifiDirectConnection.setDataCallback(dataCallback)
     }
 
@@ -73,7 +78,10 @@ class RobustConnection(
         Timber.d("RobustConnection: Attempting connection/discovery...")
 
         if (!networkConnection.isConnected()) networkConnection.connect(context)
-        if (wifiAwareConnection?.isConnected() == false) wifiAwareConnection.connect(context)
+        @SuppressLint("NewApi") // Guarded by if check
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (wifiAwareConnection?.isConnected() == false) wifiAwareConnection.connect(context)
+        }
 
         // Schedule WiFi Direct fallback
         handler.removeCallbacks(checkConnectionRunnable)
@@ -89,7 +97,9 @@ class RobustConnection(
     override fun disconnect(context: Context?) {
         handler.removeCallbacks(checkConnectionRunnable)
         networkConnection.disconnect(context)
-        wifiAwareConnection?.disconnect(context)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            wifiAwareConnection?.disconnect(context)
+        }
         wifiDirectConnection.disconnect(context)
         activeConnection = null
     }
@@ -101,7 +111,8 @@ class RobustConnection(
                         activeConnection = networkConnection
                         true
                     }
-                    wifiAwareConnection?.isConnected() == true -> {
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                            wifiAwareConnection?.isConnected() == true -> {
                         activeConnection = wifiAwareConnection
                         true
                     }
@@ -125,14 +136,18 @@ class RobustConnection(
         } else {
             // Broadcast to all potentially connected
             networkConnection.sendMessage(message)
-            wifiAwareConnection?.sendMessage(message)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                wifiAwareConnection?.sendMessage(message)
+            }
             wifiDirectConnection.sendMessage(message)
         }
     }
 
     override fun start() {
         networkConnection.start()
-        wifiAwareConnection?.start()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            wifiAwareConnection?.start()
+        }
         wifiDirectConnection.start()
     }
 
@@ -140,7 +155,9 @@ class RobustConnection(
         handler.removeCallbacks(checkConnectionRunnable)
         handler.removeCallbacks(reconnectionWatchdog)
         networkConnection.stop()
-        wifiAwareConnection?.stop()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            wifiAwareConnection?.stop()
+        }
         wifiDirectConnection.stop()
     }
 }

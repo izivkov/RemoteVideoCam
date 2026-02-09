@@ -21,7 +21,7 @@ import org.avmedia.remotevideocam.utils.ProgressEvents
 import org.json.JSONObject
 import timber.log.Timber
 
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.Q)
 class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalConnection {
     override val name: String = "WiFi Aware"
 
@@ -60,14 +60,16 @@ class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalC
     override fun init(context: Context?) {
         this.context = context
         awareManager = context?.getSystemService(Context.WIFI_AWARE_SERVICE) as? WifiAwareManager
-        connectivityManager = context?.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-        socketHandler = LocalConnectionSocketHandler(
-            this.context, // CORRECTED: Pass the context value directly
-            ArrayBlockingQueue(QUEUE_CAPACITY),
-            { dataReceivedCallback },
-            { emitConnected() },
-            { emitDisconnected() }
-        )
+        connectivityManager =
+                context?.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        socketHandler =
+                LocalConnectionSocketHandler(
+                        this.context, // CORRECTED: Pass the context value directly
+                        ArrayBlockingQueue(QUEUE_CAPACITY),
+                        { dataReceivedCallback },
+                        { emitConnected() },
+                        { emitDisconnected() }
+                )
     }
 
     override fun setDataCallback(dataCallback: IDataReceived?) {
@@ -81,69 +83,92 @@ class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalC
             Timber.e("WiFi Aware unavailable")
             return
         }
-        awareManager?.attach(object : AttachCallback() {
-            override fun onAttached(session: WifiAwareSession) {
-                awareSession = session
-                startDiscovery(session)
-            }
-            override fun onAttachFailed() {
-                Timber.e("WiFi Aware attach failed")
-            }
-        }, Handler(Looper.getMainLooper()))
+        awareManager?.attach(
+                object : AttachCallback() {
+                    override fun onAttached(session: WifiAwareSession) {
+                        awareSession = session
+                        startDiscovery(session)
+                    }
+                    override fun onAttachFailed() {
+                        Timber.e("WiFi Aware attach failed")
+                    }
+                },
+                Handler(Looper.getMainLooper())
+        )
     }
 
     @SuppressLint("MissingPermission")
     private fun startDiscovery(session: WifiAwareSession) {
-        val pubConfig = PublishConfig.Builder()
-            .setServiceName(SERVICE_NAME)
-            .setServiceSpecificInfo(localDeviceId.toByteArray())
-            .build()
+        val pubConfig =
+                PublishConfig.Builder()
+                        .setServiceName(SERVICE_NAME)
+                        .setServiceSpecificInfo(localDeviceId.toByteArray())
+                        .build()
 
-        session.publish(pubConfig, object : DiscoverySessionCallback() {
-            override fun onPublishStarted(session: PublishDiscoverySession) {
-                publishSession = session
-                Timber.d("WiFiAware: Publish Started. ID: $localDeviceId")
-            }
-
-            override fun onMessageReceived(peerHandle: PeerHandle, message: ByteArray) {
-                val remoteId = String(message)
-                // Tie-breaking logic: lower ID initiates connection.
-                if (localDeviceId < remoteId && !didInitiateDataPath.get()) {
-                    Timber.d("WiFiAware: Tie-break lost. I am RESPONDER.")
-                    // Attempt to set up data path as Responder.
-                    if (didInitiateDataPath.compareAndSet(false, true)) {
-                        setupDataPath(peerHandle, isInitiator = false)
+        session.publish(
+                pubConfig,
+                object : DiscoverySessionCallback() {
+                    override fun onPublishStarted(session: PublishDiscoverySession) {
+                        publishSession = session
+                        Timber.d("WiFiAware: Publish Started. ID: $localDeviceId")
                     }
-                }
-            }
-        }, Handler(Looper.getMainLooper()))
+
+                    override fun onMessageReceived(peerHandle: PeerHandle, message: ByteArray) {
+                        val remoteId = String(message)
+                        // Tie-breaking logic: lower ID initiates connection.
+                        if (localDeviceId < remoteId && !didInitiateDataPath.get()) {
+                            Timber.d("WiFiAware: Tie-break lost. I am RESPONDER.")
+                            // Attempt to set up data path as Responder.
+                            if (didInitiateDataPath.compareAndSet(false, true)) {
+                                setupDataPath(peerHandle, isInitiator = false)
+                            }
+                        }
+                    }
+                },
+                Handler(Looper.getMainLooper())
+        )
 
         val subConfig = SubscribeConfig.Builder().setServiceName(SERVICE_NAME).build()
 
-        session.subscribe(subConfig, object : DiscoverySessionCallback() {
-            override fun onSubscribeStarted(session: SubscribeDiscoverySession) {
-                subscribeSession = session
-                Timber.d("WiFiAware: Subscribe Started")
-            }
-
-            override fun onServiceDiscovered(peerHandle: PeerHandle, info: ByteArray, matches: List<ByteArray>) {
-                if (isConnecting.get() || didInitiateDataPath.get()) return
-
-                val remoteId = String(info)
-                if (localDeviceId > remoteId) {
-                    // This device has priority, initiate the connection.
-                    if (isConnecting.compareAndSet(false, true)) {
-                        didInitiateDataPath.set(true)
-                        Timber.d("WiFiAware: Tie-break won. I am INITIATOR.")
-                        setupDataPath(peerHandle, isInitiator = true)
+        session.subscribe(
+                subConfig,
+                object : DiscoverySessionCallback() {
+                    override fun onSubscribeStarted(session: SubscribeDiscoverySession) {
+                        subscribeSession = session
+                        Timber.d("WiFiAware: Subscribe Started")
                     }
-                } else {
-                    // This device has lower priority, send a message to the other peer to start the connection.
-                    Timber.d("WiFiAware: Service discovered, but remote has priority. Sending message.")
-                    publishSession?.sendMessage(peerHandle, MSG_ID_TIE_BREAK, localDeviceId.toByteArray())
-                }
-            }
-        }, Handler(Looper.getMainLooper()))
+
+                    override fun onServiceDiscovered(
+                            peerHandle: PeerHandle,
+                            info: ByteArray,
+                            matches: List<ByteArray>
+                    ) {
+                        if (isConnecting.get() || didInitiateDataPath.get()) return
+
+                        val remoteId = String(info)
+                        if (localDeviceId > remoteId) {
+                            // This device has priority, initiate the connection.
+                            if (isConnecting.compareAndSet(false, true)) {
+                                didInitiateDataPath.set(true)
+                                Timber.d("WiFiAware: Tie-break won. I am INITIATOR.")
+                                setupDataPath(peerHandle, isInitiator = true)
+                            }
+                        } else {
+                            // This device has lower priority, send a message to the other peer to
+                            // start the connection.
+                            Timber.d(
+                                    "WiFiAware: Service discovered, but remote has priority. Sending message."
+                            )
+                            publishSession?.sendMessage(
+                                    peerHandle,
+                                    MSG_ID_TIE_BREAK,
+                                    localDeviceId.toByteArray()
+                            )
+                        }
+                    }
+                },
+                Handler(Looper.getMainLooper())
+        )
     }
 
     @SuppressLint("MissingPermission")
@@ -156,66 +181,81 @@ class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalC
             return
         }
 
-        val role = if (isInitiator) WifiAwareManager.WIFI_AWARE_DATA_PATH_ROLE_INITIATOR else WifiAwareManager.WIFI_AWARE_DATA_PATH_ROLE_RESPONDER
+        val builder =
+                WifiAwareNetworkSpecifier.Builder(sessionToUse, peerHandle).setPskPassphrase(PSK)
 
-        val builder = WifiAwareNetworkSpecifier.Builder(sessionToUse, peerHandle)
-            .setPskPassphrase(PSK)
-
-        val requestBuilder = NetworkRequest.Builder()
-            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI_AWARE)
-            .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .setNetworkSpecifier(builder.build())
+        val requestBuilder =
+                NetworkRequest.Builder()
+                        .addTransportType(NetworkCapabilities.TRANSPORT_WIFI_AWARE)
+                        .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .setNetworkSpecifier(builder.build())
 
         val request = requestBuilder.build() // Build the request after setting the role
 
-        networkCallback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                Timber.d("WiFi Aware Network Ready. Role: ${if (isInitiator) "Initiator" else "Responder"}")
-                startSocketThread(network, isInitiator)
-            }
+        networkCallback =
+                object : ConnectivityManager.NetworkCallback() {
+                    override fun onAvailable(network: Network) {
+                        Timber.d(
+                                "WiFi Aware Network Ready. Role: ${if (isInitiator) "Initiator" else "Responder"}"
+                        )
+                        startSocketThread(network, isInitiator)
+                    }
 
-            override fun onUnavailable() {
-                Timber.e("WiFi Aware Network Negotiation Timed Out or Failed.")
-                resetState()
-            }
-            override fun onLost(network: Network) {
-                Timber.w("WiFi Aware Network Lost.")
-                resetState()
-                emitDisconnected()
-            }
-        }
+                    override fun onUnavailable() {
+                        Timber.e("WiFi Aware Network Negotiation Timed Out or Failed.")
+                        resetState()
+                    }
+                    override fun onLost(network: Network) {
+                        Timber.w("WiFi Aware Network Lost.")
+                        resetState()
+                        emitDisconnected()
+                    }
+                }
         connectivityManager?.requestNetwork(request, networkCallback!!)
     }
 
     private fun startSocketThread(network: Network, isClient: Boolean) {
-        Thread({
-            try {
-                val linkProperties = connectivityManager?.getLinkProperties(network)
-                val ipv6Addr = linkProperties?.linkAddresses
-                    ?.firstOrNull { it.address is Inet6Address }
-                    ?.address?.hostAddress?.split("%")?.get(0)
+        Thread(
+                        {
+                            try {
+                                val linkProperties = connectivityManager?.getLinkProperties(network)
+                                val ipv6Addr =
+                                        linkProperties
+                                                ?.linkAddresses
+                                                ?.firstOrNull { it.address is Inet6Address }
+                                                ?.address
+                                                ?.hostAddress
+                                                ?.split("%")
+                                                ?.get(0)
 
-                if (ipv6Addr == null) {
-                    Timber.e("Could not find IPv6 address. Aborting socket connection.")
-                    resetState()
-                    return@Thread
-                }
+                                if (ipv6Addr == null) {
+                                    Timber.e(
+                                            "Could not find IPv6 address. Aborting socket connection."
+                                    )
+                                    resetState()
+                                    return@Thread
+                                }
 
-                if (isClient) {
-                    Thread.sleep(SOCKET_DELAY_MS) // Give server socket time to start
-                    socketHandler?.connect(ipv6Addr, DEFAULT_PORT)?.let {
-                        socketHandler?.startCommunication(it)
-                    }
-                } else {
-                    socketHandler?.waitForConnection(DEFAULT_PORT)?.let {
-                        socketHandler?.startCommunication(it)
-                    }
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Socket Error in WiFi Aware connection thread")
-                resetState()
-            }
-        }, THREAD_NAME).start()
+                                if (isClient) {
+                                    Thread.sleep(
+                                            SOCKET_DELAY_MS
+                                    ) // Give server socket time to start
+                                    socketHandler?.connect(ipv6Addr, DEFAULT_PORT)?.let {
+                                        socketHandler?.startCommunication(it)
+                                    }
+                                } else {
+                                    socketHandler?.waitForConnection(DEFAULT_PORT)?.let {
+                                        socketHandler?.startCommunication(it)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Timber.e(e, "Socket Error in WiFi Aware connection thread")
+                                resetState()
+                            }
+                        },
+                        THREAD_NAME
+                )
+                .start()
     }
 
     private fun resetState() {
@@ -242,8 +282,12 @@ class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalC
 
     override fun disconnect(context: Context?) = cleanup()
     override fun isConnected(): Boolean = socketHandler?.isConnected() ?: false
-    override fun sendMessage(message: String?) { message?.let { socketHandler?.put(it) } }
-    override fun stop() { socketHandler?.stop() }
+    override fun sendMessage(message: String?) {
+        message?.let { socketHandler?.put(it) }
+    }
+    override fun stop() {
+        socketHandler?.stop()
+    }
     override fun start() {}
 
     private fun emitConnected() {
