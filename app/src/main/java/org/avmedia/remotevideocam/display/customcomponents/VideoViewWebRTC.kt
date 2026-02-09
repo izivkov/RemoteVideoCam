@@ -12,7 +12,7 @@ package org.avmedia.remotevideocam.display.customcomponents
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
+import androidx.core.content.edit
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.disposables.Disposable
@@ -182,10 +182,7 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
 
     private fun saveMirrorState(state: Boolean) {
         val sharedPref = context.getSharedPreferences("MirrorPrefs", Context.MODE_PRIVATE)
-        with(sharedPref.edit()) {
-            putBoolean("MirrorState", state)
-            apply()
-        }
+        sharedPref.edit { putBoolean("MirrorState", state) }
     }
 
     private fun createAppEventsSubscription(): Disposable =
@@ -213,7 +210,7 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
             System.loadLibrary("jingle_peerconnection_so")
         } catch (e: UnsatisfiedLinkError) {
             // If it fails here, the .so is definitely missing from the APK
-            Log.e("WebRtcServer", "Native library failed to load: ${e.message}")
+            Timber.e("Native library failed to load: ${e.message}")
         }
 
         // Now proceed with initialization

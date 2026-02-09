@@ -7,10 +7,15 @@
      <string name="activity_name">Удалённая видеокамера</string>
      <string name="camera_and_location_rationale">Для запуска этого приложения необходимы некоторые разрешения. Сейчас вам будет предложено предоставить их.</string>
      <string name="returned_from_app_settings_to_activity">Возврат из настроек</string>
-     <string name="connecting_to_display">Подключение к дисплею...</string>
-     <string name="connecting_to_camera">Подключение к камере...</string>
-     <string name="connecting">Подключение...</string>
-     <string name="waiting_got_other_device_to_connect">Ожидание подключения другого\nустройства...</string>
+     <string name="connecting_to_display">Подключение к дисплею…</string>
+     <string name="connecting_to_camera">Подключение к камере…</string>
+     <string name="connecting">Подключение…</string>
+     <string name="waiting_got_other_device_to_connect">Ожидание подключения другого\nустройства…</string>
      <string name="notify_title">Обнаружено движение</string>
      <string name="notify_content_text_timestamp">В %1$s</string>
+     <string name="connection_type">Тип соединения</string>
+     <string name="connection_auto">Авто (Рекомендуется)</string>
+     <string name="connection_network">WiFi (NSD)</string>
+     <string name="connection_wifi_direct">WiFi Direct</string>
+     <string name="connection_wifi_aware">WiFi Aware</string>
 </resources>
