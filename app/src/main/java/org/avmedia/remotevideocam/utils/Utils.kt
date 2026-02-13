@@ -99,7 +99,7 @@ object Utils {
                 for (addr in iface.inetAddresses) {
                     if (addr is java.net.Inet4Address) {
                         addr.hostAddress?.let { host ->
-                            if (host != "127.0.0.1" && !ips.contains(host)) {
+                            if (host != "127.0.0.1" && !ips.contains(host) && host.startsWith("192.168.")) {
                                 ips.add(host)
                             }
                         }
