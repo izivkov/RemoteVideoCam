@@ -1,0 +1,4 @@
+# Linux client
+.venv/
+__pycache__/
+*.pyc
