@@ -44,6 +44,27 @@ sudo usermod -aG video $USER
 # Log out and back in for the change to take effect
 ```
 
+### Firewall (firewalld)
+
+If your Linux distribution uses `firewalld` (Fedora, RHEL, Arch, etc.) and your Wi-Fi interface is in the **public** zone (the default), mDNS traffic and the client's TCP listen port are blocked. Auto-discovery will not work until you open them:
+
+```sh
+# Allow mDNS so the phone can discover the Linux client
+sudo firewall-cmd --add-service=mdns
+
+# Allow the TCP port so the phone can connect to us
+sudo firewall-cmd --add-port=19400/tcp
+```
+
+To make the changes survive a reboot, add `--permanent`:
+
+```sh
+sudo firewall-cmd --permanent --add-service=mdns
+sudo firewall-cmd --permanent --add-port=19400/tcp
+```
+
+> **Note:** The client detects a blocking firewall at startup and prints the exact commands you need. If you only use `--connect` mode (direct IP), no firewall changes are required.
+
 ## Setup
 
 ```sh
@@ -65,10 +86,13 @@ uv run rvc-client
 
 The client will:
 
-1. Use mDNS (NSD) to discover the phone on the network.
-2. Connect to it over TCP.
-3. Complete WebRTC signaling (offer/answer + ICE).
-4. Decode incoming video frames and write them to `/dev/video0`.
+1. Register an mDNS (NSD) service on the local network, just like the Android Display app does.
+2. Open a TCP server socket and wait for the Camera to discover us and connect.
+3. Simultaneously browse for an already-advertising Camera service — if one is found first, connect to it directly.
+4. Complete WebRTC signaling (offer/answer + ICE).
+5. Decode incoming video frames and write them to `/dev/video0`.
+
+> **How it works:** The Android Camera app discovers Display services via NSD and connects *to them*. By registering our own service, the Camera finds us automatically — no manual IP entry needed.
 
 ### Connect directly (known IP)
 
@@ -80,7 +104,7 @@ uv run rvc-client --connect 192.168.1.42:19400
 
 ### Listen mode
 
-Register an NSD service and wait for the Camera to find and connect to you:
+Register an NSD service and *only* wait for the Camera to find and connect to you (no outbound discovery):
 
 ```sh
 uv run rvc-client --listen
@@ -136,7 +160,7 @@ vlc v4l2:///dev/video0
                                           └──────────────┘
 ```
 
-1. **Signaling:** The client connects to the phone over TCP. The phone sends a WebRTC SDP offer; the client responds with an SDP answer. ICE candidates are exchanged over the same TCP channel.
+1. **Signaling:** The client registers an NSD service (like the Android Display) and listens on a TCP port. The Camera discovers this service via mDNS, connects over TCP, and sends a WebRTC SDP offer. The client responds with an SDP answer. ICE candidates are exchanged over the same TCP channel. (When using `--connect`, the client connects directly to the phone instead.)
 
 2. **Media:** Once ICE connectivity is established and DTLS completes, the phone streams video (VP8 or H.264) and audio (Opus) over SRTP. The client decodes video frames using `aiortc` / `libav`.
 
@@ -144,12 +168,13 @@ vlc v4l2:///dev/video0
 
 ## Troubleshooting
 
-### "No RemoteVideoCam service found"
+### "No Camera connected or discovered"
 
 - Make sure the Android app is open and set to **Camera** mode.
 - Verify both devices are on the same Wi-Fi network.
-- Try `--connect <phone-ip>:19400` to bypass mDNS discovery.
-- Check your firewall isn't blocking mDNS (UDP port 5353) or the app's TCP port (19400).
+- The Camera needs to discover the Linux client's NSD service — make sure your firewall isn't blocking mDNS (UDP port 5353) or the client's TCP port (default 19400).
+- Try `--connect <phone-ip>:19400` to bypass NSD discovery entirely.
+- Use `--verbose` to see mDNS registration and discovery details.
 
 ### "No write access to /dev/video0"
 

@@ -16,10 +16,12 @@ import fcntl
 import json
 import logging
 import os
+import shutil
 import signal
 import socket as sock_mod
 import struct
-from dataclasses import dataclass
+import subprocess
+from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any
 
@@ -65,6 +67,24 @@ _IOC_READ = 2
 VIDIOC_S_FMT = _ioctl_number(_IOC_READ | _IOC_WRITE, ord("V"), 5, 208)
 
 
+# Struct layout of v4l2_format on x86_64 (verified with kernel headers):
+#   offset 0: __u32 type          (4 bytes)
+#   offset 4: 4 bytes padding     (alignment for the union)
+#   offset 8: union fmt starts here
+#     struct v4l2_pix_format:
+#       offset  8: __u32 width
+#       offset 12: __u32 height
+#       offset 16: __u32 pixelformat
+#       offset 20: __u32 field
+#       offset 24: __u32 bytesperline
+#       offset 28: __u32 sizeimage
+#       offset 32: __u32 colorspace
+#       ...
+# Total sizeof(struct v4l2_format) = 208
+_V4L2_FMT_STRUCT_SIZE = 208
+_V4L2_FMT_PIX_OFFSET = 8  # offset where fmt.pix begins
+
+
 @dataclass
 class V4L2LoopbackWriter:
     """Writes raw video frames to a v4l2 loopback device."""
@@ -74,8 +94,6 @@ class V4L2LoopbackWriter:
     height: int
     fd: int = -1
     frame_size: int = 0
-
-    _FMT_STRUCT_SIZE = 208
 
     def open(self) -> None:
         self.fd = os.open(self.device, os.O_WRONLY | os.O_NONBLOCK)
@@ -87,18 +105,23 @@ class V4L2LoopbackWriter:
         pix_fmt = v4l2_fourcc("Y", "U", "1", "2")  # YUV420p / I420
         self.frame_size = self.width * self.height * 3 // 2
 
-        buf = bytearray(self._FMT_STRUCT_SIZE)
+        buf = bytearray(_V4L2_FMT_STRUCT_SIZE)
+
+        # Pack the type field at offset 0
+        struct.pack_into("<I", buf, 0, V4L2BufType.VIDEO_OUTPUT)
+
+        # Pack the v4l2_pix_format fields starting at offset 8 (after 4 bytes
+        # of padding that the kernel inserts between __u32 type and the union)
         struct.pack_into(
-            "<I I I I I I I",
+            "<I I I I I I",
             buf,
-            0,
-            V4L2BufType.VIDEO_OUTPUT,
+            _V4L2_FMT_PIX_OFFSET,
             self.width,
             self.height,
             pix_fmt,
             V4L2Field.NONE,
-            self.width,
-            self.frame_size,
+            self.width,       # bytesperline (Y plane stride = width for I420)
+            self.frame_size,  # sizeimage
         )
 
         try:
@@ -152,10 +175,235 @@ def yuv420p_from_video_frame(frame: av.VideoFrame) -> bytes:
 
 
 # ---------------------------------------------------------------------------
+# Firewall helpers (firewalld)
+# ---------------------------------------------------------------------------
+
+
+class FirewallManager:
+    """Detects whether firewall rules block mDNS and the TCP listen port.
+
+    On systems running ``firewalld`` the default *public* zone typically
+    blocks mDNS (UDP 5353) and our TCP listen port.  Instead of invoking
+    ``firewall-cmd`` (which hangs waiting for polkit authentication when
+    run as a normal user), this helper reads the firewalld XML config
+    files directly and prints clear ``sudo`` commands the user can
+    copy-paste if ports are blocked.
+    """
+
+    _FIREWALLD_CONF = "/etc/firewalld/firewalld.conf"
+    _ETC_ZONES = "/etc/firewalld/zones"
+    _LIB_ZONES = "/usr/lib/firewalld/zones"
+
+    def __init__(self, tcp_port: int) -> None:
+        self._tcp_port = tcp_port
+
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _read_default_zone() -> str | None:
+        """Read the DefaultZone from firewalld.conf."""
+        try:
+            with open(FirewallManager._FIREWALLD_CONF) as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("DefaultZone="):
+                        return line.split("=", 1)[1].strip()
+        except OSError:
+            return None
+        return None
+
+    @staticmethod
+    def _read_zone_xml(zone_name: str) -> str | None:
+        """Return the raw XML text of a zone file (/etc overrides /usr/lib)."""
+        for base in (FirewallManager._ETC_ZONES, FirewallManager._LIB_ZONES):
+            path = os.path.join(base, f"{zone_name}.xml")
+            try:
+                with open(path) as f:
+                    return f.read()
+            except OSError:
+                continue
+        return None
+
+    @staticmethod
+    def _zone_has_service(xml: str, service: str) -> bool:
+        """Simple check: does the zone XML contain a <service name="..."/> entry?"""
+        import re
+        return bool(re.search(rf'<service\s+name\s*=\s*"{re.escape(service)}"\s*/?\s*>', xml))
+
+    @staticmethod
+    def _zone_has_port(xml: str, port: int, proto: str = "tcp") -> bool:
+        """Check whether the zone XML has a matching <port .../> entry."""
+        import re
+        # Matches <port port="19400" protocol="tcp"/>  (attributes in any order)
+        for m in re.finditer(r'<port\s+([^>]+)/?\s*>', xml):
+            attrs = m.group(1)
+            has_port = re.search(rf'port\s*=\s*"{port}"', attrs)
+            has_proto = re.search(rf'protocol\s*=\s*"{re.escape(proto)}"', attrs)
+            if has_port and has_proto:
+                return True
+        return False
+
+    @staticmethod
+    def _zone_accepts_all(xml: str) -> bool:
+        """Check if the zone target is ACCEPT (allows everything)."""
+        import re
+        return bool(re.search(r'target\s*=\s*"ACCEPT"', xml))
+
+    # ------------------------------------------------------------------
+
+    def check_and_warn(self) -> None:
+        """Print actionable warnings if the firewall blocks required ports."""
+        zone_name = self._read_default_zone()
+        if zone_name is None:
+            logger.debug("firewalld not found or not configured – skipping firewall check")
+            return
+
+        xml = self._read_zone_xml(zone_name)
+        if xml is None:
+            logger.debug("Could not read zone '%s' – skipping firewall check", zone_name)
+            return
+
+        # Zones with target=ACCEPT allow everything
+        if self._zone_accepts_all(xml):
+            logger.debug("Zone '%s' accepts all traffic – no firewall issues", zone_name)
+            return
+
+        mdns_ok = self._zone_has_service(xml, "mdns")
+        tcp_ok = self._zone_has_port(xml, self._tcp_port, "tcp")
+
+        missing: list[str] = []
+        if not mdns_ok:
+            missing.append("  sudo firewall-cmd --add-service=mdns")
+        if not tcp_ok:
+            missing.append(f"  sudo firewall-cmd --add-port={self._tcp_port}/tcp")
+
+        if not missing:
+            logger.debug(
+                "Firewall zone '%s' already allows mDNS and TCP port %d",
+                zone_name,
+                self._tcp_port,
+            )
+            return
+
+        logger.warning(
+            "Your firewall (zone '%s') is blocking ports needed for "
+            "auto-discovery.\n"
+            "The Camera won't be able to find this client or connect to it.\n"
+            "Run the following once, then restart rvc-client:\n\n%s\n\n"
+            "To make the changes permanent add --permanent to each command.\n"
+            "Alternatively, use:  rvc-client --connect <phone-ip>:19400",
+            zone_name,
+            "\n".join(missing),
+        )
+
+
+# ---------------------------------------------------------------------------
+# NSD service registration via avahi-publish-service
+# ---------------------------------------------------------------------------
+
+
+class AvahiServicePublisher:
+    """Register an mDNS/DNS-SD service using ``avahi-publish-service``.
+
+    When ``avahi-daemon`` is running it owns the mDNS socket (UDP 5353).
+    The Python *zeroconf* library opens its own socket which may not be
+    visible on the LAN interface when firewalld is active.  Delegating to
+    avahi via its CLI tool avoids the conflict entirely.
+
+    Falls back to the Python *zeroconf* library when avahi-publish-service
+    is not installed.
+    """
+
+    def __init__(self) -> None:
+        self._process: subprocess.Popen[bytes] | None = None
+        # Fallback objects when avahi is not available
+        self._azc: AsyncZeroconf | None = None
+        self._service_info: Any = None
+
+    async def register(
+        self, service_name: str, service_type_bare: str, port: int, host_ip: str
+    ) -> None:
+        """*service_type_bare* must NOT have the ``.local.`` suffix, e.g.
+        ``_org_avmedia_remotevideocam._tcp``."""
+        avahi_bin = shutil.which("avahi-publish-service")
+        if avahi_bin is not None:
+            cmd = [
+                avahi_bin,
+                service_name,
+                service_type_bare,
+                str(port),
+            ]
+            logger.debug("Starting: %s", " ".join(cmd))
+            self._process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            # Give it a moment to register
+            await asyncio.sleep(0.5)
+            if self._process.poll() is not None:
+                stderr = (self._process.stderr.read() or b"").decode(errors="replace")
+                logger.warning(
+                    "avahi-publish-service exited immediately: %s – "
+                    "falling back to python-zeroconf",
+                    stderr.strip(),
+                )
+                self._process = None
+                await self._register_zeroconf(service_name, service_type_bare, port, host_ip)
+            else:
+                logger.info(
+                    "Registered NSD service '%s' via avahi-publish-service on port %d",
+                    service_name,
+                    port,
+                )
+        else:
+            logger.debug("avahi-publish-service not found – using python-zeroconf")
+            await self._register_zeroconf(service_name, service_type_bare, port, host_ip)
+
+    async def _register_zeroconf(
+        self, service_name: str, service_type_bare: str, port: int, host_ip: str
+    ) -> None:
+        from zeroconf import ServiceInfo
+
+        stype = service_type_bare + ".local."
+        self._azc = AsyncZeroconf()
+        self._service_info = ServiceInfo(
+            stype,
+            f"{service_name}.{stype}",
+            addresses=[sock_mod.inet_aton(host_ip)],
+            port=port,
+        )
+        await self._azc.async_register_service(self._service_info, strict=False)
+        logger.info(
+            "Registered NSD service '%s' via python-zeroconf on port %d",
+            service_name,
+            port,
+        )
+
+    async def unregister(self) -> None:
+        if self._process is not None:
+            self._process.terminate()
+            try:
+                self._process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                self._process.kill()
+            self._process = None
+        if self._azc is not None and self._service_info is not None:
+            try:
+                await self._azc.async_unregister_service(self._service_info)
+                await self._azc.async_close()
+            except Exception:
+                pass
+            self._azc = None
+            self._service_info = None
+
+
+# ---------------------------------------------------------------------------
 # mDNS / NSD discovery  (fully async)
 # ---------------------------------------------------------------------------
 
 SERVICE_TYPE = "_org_avmedia_remotevideocam._tcp.local."
+SERVICE_TYPE_BARE = "_org_avmedia_remotevideocam._tcp"
 
 
 @dataclass
@@ -166,7 +414,19 @@ class DiscoveredService:
 
 
 async def discover_camera(timeout: float = 30.0) -> DiscoveredService:
-    """Use mDNS to discover a RemoteVideoCam service on the network."""
+    """Use mDNS to discover a RemoteVideoCam Camera service on the network.
+
+    The Camera side (Android) registers an NSD service when in camera mode
+    using service type ``_org_avmedia_remotevideocam._tcp.``.  We browse for
+    that service type here.
+
+    NOTE: In the standard Android-to-Android flow the *Display* registers a
+    service and the *Camera* discovers it.  However, if the phone is already
+    advertising (e.g. it was started in camera-only mode), this discovery
+    function will find it.  The primary auto-connect path for the Linux
+    client is ``run_as_display_server`` which mirrors the Android Display
+    role (register + listen).
+    """
     loop = asyncio.get_running_loop()
     result_future: asyncio.Future[DiscoveredService] = loop.create_future()
     azc = AsyncZeroconf()
@@ -316,7 +576,7 @@ class DisplaySession:
         # "candidate:" to the foundation field.  Strip it to avoid ending up
         # with "candidate:candidate:…".
         if candidate_str.startswith("candidate:"):
-            candidate_str = candidate_str[len("candidate:") :]
+            candidate_str = candidate_str[len("candidate:"):]
 
         candidate = candidate_from_sdp(candidate_str)
         candidate.sdpMid = sdp_mid
@@ -459,25 +719,26 @@ async def run_as_display_server(
     port: int,
     v4l2_device: str,
     timeout: float,
+    firewall: FirewallManager | None = None,
 ) -> None:
     """Register our own NSD service and wait for the Camera to connect,
-    then run the WebRTC display session."""
+    then run the WebRTC display session.
+
+    This mirrors the Android Display role: the Display registers an NSD
+    service of type ``_org_avmedia_remotevideocam._tcp.`` and opens a TCP
+    server socket.  The Camera discovers this service and connects to it.
+    Once connected, the Camera sends a WebRTC offer and the session begins.
+    """
 
     local_ip = _get_local_ip()
     service_name = f"REMOTE_VIDEO_CAM-LinuxClient-{local_ip}"
 
-    azc = AsyncZeroconf()
+    if firewall is None:
+        firewall = FirewallManager(port)
+    firewall.check_and_warn()
 
-    from zeroconf import ServiceInfo
-
-    info = ServiceInfo(
-        SERVICE_TYPE,
-        f"{service_name}.{SERVICE_TYPE}",
-        addresses=[sock_mod.inet_aton(local_ip)],
-        port=port,
-    )
-    await azc.async_register_service(info, strict=False)
-    logger.info("Registered NSD service '%s' on port %d", service_name, port)
+    publisher = AvahiServicePublisher()
+    await publisher.register(service_name, SERVICE_TYPE_BARE, port, local_ip)
 
     connected_future: asyncio.Future[
         tuple[asyncio.StreamReader, asyncio.StreamWriter]
@@ -504,8 +765,7 @@ async def run_as_display_server(
         logger.error("No Camera connected within %.0fs", timeout)
         server.close()
         await server.wait_closed()
-        await azc.async_unregister_service(info)
-        await azc.async_close()
+        await publisher.unregister()
         raise SystemExit(1)
 
     transport = SignalingTransport(reader, writer)
@@ -517,8 +777,7 @@ async def run_as_display_server(
     finally:
         server.close()
         await server.wait_closed()
-        await azc.async_unregister_service(info)
-        await azc.async_close()
+        await publisher.unregister()
 
 
 async def run_direct_connection(
@@ -532,6 +791,167 @@ async def run_direct_connection(
     v4l2_writer = V4L2LoopbackWriter(device=v4l2_device, width=640, height=480)
     session = DisplaySession(transport, v4l2_writer)
     await session.run()
+
+
+async def run_discover_then_connect(
+    port: int,
+    v4l2_device: str,
+    timeout: float,
+    discovery_timeout: float = 8.0,
+) -> None:
+    """Auto-connect strategy that mirrors the Android Display role.
+
+    The Android protocol works as follows:
+      - The **Display** registers an NSD service and listens on a TCP port.
+      - The **Camera** discovers Display services via NSD, then connects.
+      - Once the TCP socket is up the Camera sends a WebRTC offer.
+
+    This function therefore:
+      1. Warns if firewalld blocks mDNS / TCP (user must open once).
+      2. Registers an NSD service via avahi-publish-service (like the
+         Android Display).
+      3. Simultaneously browses for an already-advertising Camera service
+         (in case the phone advertises its own service when in camera mode).
+      4. If a Camera service is discovered first, connects directly to it.
+      5. Otherwise waits for the Camera to find *us* and connect.
+    """
+
+    local_ip = _get_local_ip()
+    service_name = f"REMOTE_VIDEO_CAM-LinuxClient-{local_ip}"
+
+    firewall = FirewallManager(port)
+    firewall.check_and_warn()
+
+    publisher = AvahiServicePublisher()
+    await publisher.register(service_name, SERVICE_TYPE_BARE, port, local_ip)
+
+    # Also spin up a zeroconf browser for discovery (reading does not
+    # require the mDNS port to be writable – outbound queries work fine).
+    azc = AsyncZeroconf()
+
+    loop = asyncio.get_running_loop()
+
+    # ------------------------------------------------------------------
+    # Path A: Camera connects to us (we act as server, standard flow)
+    # ------------------------------------------------------------------
+    incoming_future: asyncio.Future[
+        tuple[asyncio.StreamReader, asyncio.StreamWriter]
+    ] = loop.create_future()
+
+    async def on_client(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        peer = writer.get_extra_info("peername")
+        logger.info("Camera connected from %s", peer)
+        if not incoming_future.done():
+            incoming_future.set_result((reader, writer))
+        else:
+            writer.close()
+
+    server = await asyncio.start_server(on_client, "0.0.0.0", port)
+    addrs = [str(s.getsockname()) for s in server.sockets]
+    logger.info("Listening on %s for Camera connection …", ", ".join(addrs))
+
+    # ------------------------------------------------------------------
+    # Path B: We discover a Camera service and connect to it
+    # ------------------------------------------------------------------
+    discovered_future: asyncio.Future[DiscoveredService] = loop.create_future()
+
+    def _on_browse_change(
+        zeroconf: Any,
+        service_type: str,
+        name: str,
+        state_change: ServiceStateChange,
+    ) -> None:
+        if state_change != ServiceStateChange.Added:
+            return
+        asyncio.ensure_future(_on_browse_resolve(zeroconf, service_type, name))
+
+    async def _on_browse_resolve(
+        zeroconf: Any, service_type: str, name: str
+    ) -> None:
+        svc_info = AsyncServiceInfo(service_type, name)
+        if not await svc_info.async_request(zeroconf, 3000):
+            return
+        addresses = svc_info.parsed_scoped_addresses()
+        if not addresses:
+            return
+        host = addresses[0]
+        svc_port = svc_info.port
+        svc_name = svc_info.name
+
+        # Ignore our own registration
+        if service_name in (svc_name or ""):
+            logger.debug("Ignoring our own NSD service: %s", svc_name)
+            return
+
+        logger.info("Discovered Camera service: %s @ %s:%d", svc_name, host, svc_port)
+        if not discovered_future.done():
+            discovered_future.set_result(
+                DiscoveredService(name=svc_name, host=host, port=svc_port)
+            )
+
+    browser = AsyncServiceBrowser(
+        azc.zeroconf, SERVICE_TYPE, handlers=[_on_browse_change]
+    )
+
+    # ------------------------------------------------------------------
+    # Wait for whichever path succeeds first
+    # ------------------------------------------------------------------
+    transport: SignalingTransport | None = None
+    try:
+        done, pending = await asyncio.wait(
+            [
+                asyncio.ensure_future(incoming_future),
+                asyncio.ensure_future(discovered_future),
+            ],
+            timeout=timeout,
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+
+        if not done:
+            logger.error(
+                "No Camera connected or discovered within %.0fs", timeout
+            )
+            raise SystemExit(1)
+
+        for p in pending:
+            p.cancel()
+
+        for task in done:
+            result = task.result()
+            if isinstance(result, tuple):
+                # Path A won: Camera connected to us
+                reader, writer = result
+                transport = SignalingTransport(reader, writer)
+                break
+            elif isinstance(result, DiscoveredService):
+                # Path B won: we discovered a Camera service
+                svc = result
+                logger.info(
+                    "Connecting to discovered Camera at %s:%d …",
+                    svc.host,
+                    svc.port,
+                )
+                transport = await connect_direct(svc.host, svc.port, timeout)
+                break
+
+        if transport is None:
+            logger.error("Failed to establish a connection")
+            raise SystemExit(1)
+
+        v4l2_writer = V4L2LoopbackWriter(
+            device=v4l2_device, width=640, height=480
+        )
+        session = DisplaySession(transport, v4l2_writer)
+        await session.run()
+
+    finally:
+        await browser.async_cancel()
+        await azc.async_close()
+        server.close()
+        await server.wait_closed()
+        await publisher.unregister()
 
 
 # ---------------------------------------------------------------------------
@@ -572,38 +992,20 @@ async def async_main(args: argparse.Namespace) -> None:
 
     # Mode 2: Listen-only (skip discovery, register NSD, wait)
     if args.listen:
-        await run_as_display_server(port, v4l2_device, timeout)
+        fw = FirewallManager(port)
+        fw.check_and_warn()
+        await run_as_display_server(port, v4l2_device, timeout, firewall=fw)
         return
 
-    # Mode 3: Auto – discover, then try connecting directly to what we found.
-    # The Android app registers its NSD service and also listens on that port.
-    # When we connect, the Camera side sends us the WebRTC offer directly.
-    logger.info("Discovering RemoteVideoCam on the network …")
-    try:
-        service = await discover_camera(timeout=timeout)
-        logger.info(
-            "Found camera: %s @ %s:%d", service.name, service.host, service.port
-        )
-    except (asyncio.TimeoutError, TimeoutError):
-        logger.info("Discovery timed out – falling back to listen mode")
-        await run_as_display_server(port, v4l2_device, timeout)
-        return
-
-    # Try connecting directly to the discovered service.  The Android Camera
-    # accepts incoming TCP connections and immediately sends a WebRTC offer.
-    try:
-        await run_direct_connection(
-            service.host, service.port, v4l2_device, timeout
-        )
-    except (ConnectionRefusedError, asyncio.TimeoutError, TimeoutError, OSError) as exc:
-        logger.warning(
-            "Direct connection to %s:%d failed (%s) – "
-            "falling back to listen mode",
-            service.host,
-            service.port,
-            exc,
-        )
-        await run_as_display_server(port, v4l2_device, timeout)
+    # Mode 3 (default): Register our NSD service (Display role) and
+    # simultaneously browse for a Camera service.  The Camera discovers
+    # *us* and connects; if a Camera service is already advertised we can
+    # also connect outward.  This mirrors the Android Display role.
+    logger.info(
+        "Registering NSD service and waiting for Camera "
+        "(also browsing for advertised Camera services) …"
+    )
+    await run_discover_then_connect(port, v4l2_device, timeout)
 
 
 def main() -> None:
@@ -615,7 +1017,7 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 examples:
-  %(prog)s                                  # auto-discover & listen on default port
+  %(prog)s                                  # register NSD service & wait for Camera
   %(prog)s --device /dev/video2             # use a different loopback device
   %(prog)s --listen                         # skip discovery, just listen
   %(prog)s --connect 192.168.1.42:19400     # connect directly to the phone
