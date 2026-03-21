@@ -16,6 +16,7 @@ import fcntl
 import json
 import logging
 import os
+import sys
 import shutil
 import signal
 import socket as sock_mod
@@ -708,9 +709,27 @@ def _get_local_ip() -> str:
 
 async def connect_direct(host: str, port: int, timeout: float) -> SignalingTransport:
     """Open a TCP connection directly to a host:port."""
-    reader, writer = await asyncio.wait_for(
-        asyncio.open_connection(host, port), timeout=timeout
-    )
+    try:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, port), timeout=timeout
+        )
+    except ConnectionRefusedError:
+        print(
+            f"Error: Connection to {host}:{port} was refused. "
+            "Is the app open and listening on that address?"
+        )
+        sys.exit(1)
+    except asyncio.TimeoutError:
+        print(
+            f"Error: Connection to {host}:{port} timed out after {timeout:.0f}s. "
+            "Is the app open and reachable at that address?"
+        )
+        sys.exit(1)
+    except OSError as exc:
+        print(
+            f"Error: Could not connect to {host}:{port}: {exc}"
+        )
+        sys.exit(1)
     logger.info("Connected to %s:%d", host, port)
     return SignalingTransport(reader, writer)
 
