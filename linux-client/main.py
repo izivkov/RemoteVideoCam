@@ -155,22 +155,124 @@ class V4L2LoopbackWriter:
             self.fd = -1
 
 
-def yuv420p_from_video_frame(frame: av.VideoFrame) -> bytes:
-    """Convert an av.VideoFrame to tightly-packed YUV420p (I420) bytes."""
+# Track whether we've already logged a rescale message so we don't spam.
+_rescale_logged: set[tuple[int, int, int, int]] = set()
+
+
+def _pack_plane(plane: av.video.plane.VideoPlane) -> bytes:
+    """Extract tightly-packed bytes from a single av VideoPlane."""
+    line_size = plane.line_size
+    h = plane.height
+    w = plane.width
+    plane_bytes = bytes(plane)
+    if line_size == w:
+        return plane_bytes
+    packed = bytearray()
+    for row in range(h):
+        packed.extend(plane_bytes[row * line_size : row * line_size + w])
+    return bytes(packed)
+
+
+def _fit_frame_into_target(
+    frame: av.VideoFrame,
+    target_width: int,
+    target_height: int,
+) -> bytes:
+    """Scale *frame* to fit inside *target_width* × *target_height* while
+    preserving the aspect ratio, then place it centred on a black
+    (YUV 0/128/128) canvas.  Returns tightly-packed I420 bytes sized
+    exactly ``target_width * target_height * 3 // 2``.
+    """
+    src_w, src_h = frame.width, frame.height
+
+    # Compute the largest rectangle with the source aspect ratio that fits
+    # inside the target dimensions.
+    scale = min(target_width / src_w, target_height / src_h)
+    # Keep dimensions even (required by YUV420p).
+    scaled_w = int(src_w * scale) & ~1
+    scaled_h = int(src_h * scale) & ~1
+
+    # Scale the frame to the fitted size and convert to I420.
+    scaled = frame.reformat(width=scaled_w, height=scaled_h, format="yuv420p")
+
+    # Build target canvas.  YUV black = Y:0  U:128  V:128.
+    y_size = target_width * target_height
+    uv_w = target_width // 2
+    uv_h = target_height // 2
+    uv_size = uv_w * uv_h
+
+    y_canvas = bytearray(b"\x00" * y_size)
+    u_canvas = bytearray(b"\x80" * uv_size)
+    v_canvas = bytearray(b"\x80" * uv_size)
+
+    # Offsets to centre the scaled image on the canvas (keep even).
+    x_off = ((target_width - scaled_w) // 2) & ~1
+    y_off = ((target_height - scaled_h) // 2) & ~1
+
+    # --- blit Y plane ---
+    y_packed = _pack_plane(scaled.planes[0])
+    for row in range(scaled_h):
+        dst_start = (y_off + row) * target_width + x_off
+        src_start = row * scaled_w
+        y_canvas[dst_start : dst_start + scaled_w] = (
+            y_packed[src_start : src_start + scaled_w]
+        )
+
+    # --- blit U plane ---
+    u_packed = _pack_plane(scaled.planes[1])
+    cx_off = x_off // 2
+    cy_off = y_off // 2
+    c_scaled_w = scaled_w // 2
+    c_scaled_h = scaled_h // 2
+    for row in range(c_scaled_h):
+        dst_start = (cy_off + row) * uv_w + cx_off
+        src_start = row * c_scaled_w
+        u_canvas[dst_start : dst_start + c_scaled_w] = (
+            u_packed[src_start : src_start + c_scaled_w]
+        )
+
+    # --- blit V plane ---
+    v_packed = _pack_plane(scaled.planes[2])
+    for row in range(c_scaled_h):
+        dst_start = (cy_off + row) * uv_w + cx_off
+        src_start = row * c_scaled_w
+        v_canvas[dst_start : dst_start + c_scaled_w] = (
+            v_packed[src_start : src_start + c_scaled_w]
+        )
+
+    return bytes(y_canvas) + bytes(u_canvas) + bytes(v_canvas)
+
+
+def yuv420p_from_video_frame(
+    frame: av.VideoFrame,
+    target_width: int | None = None,
+    target_height: int | None = None,
+) -> bytes:
+    """Convert an av.VideoFrame to tightly-packed YUV420p (I420) bytes.
+
+    If *target_width* / *target_height* are given and differ from the frame's
+    native size, the frame is fitted (aspect-ratio-preserving scale with
+    black pillarbox / letterbox bars) so that the output is always exactly
+    ``target_width * target_height * 3 // 2`` bytes.
+    """
+    if (
+        target_width is not None
+        and target_height is not None
+        and (frame.width != target_width or frame.height != target_height)
+    ):
+        key = (frame.width, frame.height, target_width, target_height)
+        if key not in _rescale_logged:
+            logger.info(
+                "Fitting frame %dx%d into %dx%d (aspect-ratio preserving)",
+                frame.width, frame.height, target_width, target_height,
+            )
+            _rescale_logged.add(key)
+        return _fit_frame_into_target(frame, target_width, target_height)
+
     yuv = frame.reformat(format="yuv420p")
     planes: list[bytes] = []
     for p in yuv.planes:
-        line_size = p.line_size
-        h = p.height
-        w = p.width
-        plane_bytes = bytes(p)
-        if line_size == w:
-            planes.append(plane_bytes)
-        else:
-            packed = bytearray()
-            for row in range(h):
-                packed.extend(plane_bytes[row * line_size : row * line_size + w])
-            planes.append(bytes(packed))
+        planes.append(_pack_plane(p))
     return b"".join(planes)
 
 
@@ -605,7 +707,15 @@ class DisplaySession:
                 self.writer.height = frame.height
                 self.writer.open()
 
-            yuv = yuv420p_from_video_frame(frame)
+            # If the incoming frame resolution differs from the writer's
+            # configured size (e.g. the phone was rotated mid-stream, or
+            # reconnected at a different resolution), rescale the frame to
+            # match.  We cannot re-issue S_FMT on the v4l2 loopback device
+            # while a consumer (mpv) has it open — the ioctl would be
+            # rejected — so we must adapt on our side.
+            yuv = yuv420p_from_video_frame(
+                frame, self.writer.width, self.writer.height
+            )
             try:
                 self.writer.write_yuv420p(yuv)
             except OSError as exc:
@@ -624,7 +734,7 @@ class DisplaySession:
 
     # -- main loop --
 
-    async def run(self) -> None:
+    async def run(self, close_writer_on_stop: bool = True) -> None:
         @self.pc.on("track")
         async def on_track(track: MediaStreamTrack) -> None:
             logger.info("Track received: kind=%s", track.kind)
@@ -674,12 +784,13 @@ class DisplaySession:
             else:
                 logger.debug("Unhandled message: %s", json.dumps(msg)[:120])
 
-        await self.stop()
+        await self.stop(close_writer=close_writer_on_stop)
 
-    async def stop(self) -> None:
+    async def stop(self, close_writer: bool = True) -> None:
         self._running = False
         await self.pc.close()
-        self.writer.close()
+        if close_writer:
+            self.writer.close()
         await self.transport.close()
         logger.info("Session stopped (total frames: %d)", self._frame_count)
 
@@ -768,13 +879,45 @@ async def run_as_display_server(
         await publisher.unregister()
         raise SystemExit(1)
 
-    transport = SignalingTransport(reader, writer)
     v4l2_writer = V4L2LoopbackWriter(device=v4l2_device, width=640, height=480)
-    session = DisplaySession(transport, v4l2_writer)
 
     try:
-        await session.run()
+        while True:
+            transport = SignalingTransport(reader, writer)
+            session = DisplaySession(transport, v4l2_writer)
+            await session.run(close_writer_on_stop=False)
+
+            logger.info("Session ended – waiting for Camera to reconnect …")
+
+            # Wait for a new incoming connection from the Camera.
+            connected_future = asyncio.get_running_loop().create_future()
+
+            async def on_reconnect(
+                r: asyncio.StreamReader, w: asyncio.StreamWriter
+            ) -> None:
+                peer = w.get_extra_info("peername")
+                logger.info("Camera reconnected from %s", peer)
+                if not connected_future.done():
+                    connected_future.set_result((r, w))
+                else:
+                    w.close()
+
+            # Replace the handler so the existing server accepts new clients.
+            server.close()
+            await server.wait_closed()
+            server = await asyncio.start_server(on_reconnect, "0.0.0.0", port)
+
+            try:
+                reader, writer = await asyncio.wait_for(
+                    connected_future, timeout=timeout
+                )
+            except (asyncio.TimeoutError, TimeoutError):
+                logger.error(
+                    "No Camera reconnected within %.0fs – giving up", timeout
+                )
+                break
     finally:
+        v4l2_writer.close()
         server.close()
         await server.wait_closed()
         await publisher.unregister()
@@ -786,11 +929,33 @@ async def run_direct_connection(
     v4l2_device: str,
     timeout: float,
 ) -> None:
-    """Connect directly to a known host:port (bypassing NSD discovery)."""
-    transport = await connect_direct(host, port, timeout)
+    """Connect directly to a known host:port (bypassing NSD discovery).
+
+    Automatically reconnects when the session drops (e.g. because the
+    phone changed orientation and re-established the signaling socket).
+    """
     v4l2_writer = V4L2LoopbackWriter(device=v4l2_device, width=640, height=480)
-    session = DisplaySession(transport, v4l2_writer)
-    await session.run()
+    try:
+        while True:
+            try:
+                transport = await connect_direct(host, port, timeout)
+            except (OSError, asyncio.TimeoutError, TimeoutError) as exc:
+                logger.warning(
+                    "Connection to %s:%d failed (%s) – retrying in 2s …",
+                    host, port, exc,
+                )
+                await asyncio.sleep(2)
+                continue
+
+            session = DisplaySession(transport, v4l2_writer)
+            await session.run(close_writer_on_stop=False)
+
+            logger.info(
+                "Session ended – reconnecting to %s:%d in 1s …", host, port
+            )
+            await asyncio.sleep(1)
+    finally:
+        v4l2_writer.close()
 
 
 async def run_discover_then_connect(
@@ -899,6 +1064,7 @@ async def run_discover_then_connect(
     # Wait for whichever path succeeds first
     # ------------------------------------------------------------------
     transport: SignalingTransport | None = None
+    v4l2_writer: V4L2LoopbackWriter | None = None
     try:
         done, pending = await asyncio.wait(
             [
@@ -943,10 +1109,45 @@ async def run_discover_then_connect(
         v4l2_writer = V4L2LoopbackWriter(
             device=v4l2_device, width=640, height=480
         )
-        session = DisplaySession(transport, v4l2_writer)
-        await session.run()
+
+        while True:
+            session = DisplaySession(transport, v4l2_writer)
+            await session.run(close_writer_on_stop=False)
+
+            logger.info("Session ended – waiting for Camera to reconnect …")
+
+            # Re-arm for a new incoming connection.
+            incoming_future = loop.create_future()
+
+            async def on_reconnect(
+                r: asyncio.StreamReader, w: asyncio.StreamWriter
+            ) -> None:
+                peer = w.get_extra_info("peername")
+                logger.info("Camera reconnected from %s", peer)
+                if not incoming_future.done():
+                    incoming_future.set_result((r, w))
+                else:
+                    w.close()
+
+            server.close()
+            await server.wait_closed()
+            server = await asyncio.start_server(on_reconnect, "0.0.0.0", port)
+
+            try:
+                reader, writer = await asyncio.wait_for(
+                    incoming_future, timeout=timeout
+                )
+            except (asyncio.TimeoutError, TimeoutError):
+                logger.error(
+                    "No Camera reconnected within %.0fs – giving up", timeout
+                )
+                break
+
+            transport = SignalingTransport(reader, writer)
 
     finally:
+        if v4l2_writer is not None:
+            v4l2_writer.close()
         await browser.async_cancel()
         await azc.async_close()
         server.close()
