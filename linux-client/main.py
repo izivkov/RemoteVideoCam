@@ -600,7 +600,21 @@ class DisplaySession:
 
             # Lazy-open the loopback writer on first frame so we know the
             # actual resolution coming from the phone.
+            # Also re-open if the resolution changed (e.g. after a
+            # reconnection the phone may send a different size).
             if self.writer.fd < 0:
+                self.writer.width = frame.width
+                self.writer.height = frame.height
+                self.writer.open()
+            elif (frame.width != self.writer.width
+                  or frame.height != self.writer.height):
+                logger.info(
+                    "Resolution changed from %dx%d to %dx%d – "
+                    "re-opening v4l2 loopback device",
+                    self.writer.width, self.writer.height,
+                    frame.width, frame.height,
+                )
+                self.writer.close()
                 self.writer.width = frame.width
                 self.writer.height = frame.height
                 self.writer.open()
