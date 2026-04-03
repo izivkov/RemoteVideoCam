@@ -90,6 +90,10 @@ object NetworkServiceConnection : ILocalConnection {
         message?.let { socketHandler?.put(it) }
     }
 
+    override fun getLocalIp(): String? {
+        return org.avmedia.remotevideocam.utils.Utils.getMyIP()
+    }
+
     override fun start() {}
 
     override fun stop() {

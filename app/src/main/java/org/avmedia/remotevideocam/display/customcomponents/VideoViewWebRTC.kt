@@ -32,7 +32,7 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
     private var peerConnection: PeerConnection? = null
     private var rootEglBase: EglBase? = null
     private var factory: PeerConnectionFactory? = null
-    private val connection: ILocalConnection = NetworkServiceConnection
+    private var remoteValidIp: String? = null
     private var mirrorState = false
     private val disposables = CompositeDisposable()
 
@@ -108,7 +108,19 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
         initializePeerConnectionFactory()
         initializePeerConnections()
 
+        sendDeviceInfo()
         show()
+    }
+
+    private fun sendDeviceInfo() {
+        val localIp = (org.avmedia.remotevideocam.camera.ConnectionStrategy.getDisplayConnection(context) as? ILocalConnection)?.getLocalIp()
+        if (localIp != null) {
+            val message = JSONObject().apply {
+                put("type", "DEVICE_INFO")
+                put("ip_address", localIp)
+            }
+            sendMessage(message)
+        }
     }
 
     private fun stop() {
@@ -263,6 +275,13 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
 
                     override fun onIceCandidate(iceCandidate: IceCandidate) {
                         Timber.d("Local ICE Candidate: ${iceCandidate.sdpMid}")
+
+                        val localIp = (org.avmedia.remotevideocam.camera.ConnectionStrategy.getDisplayConnection(context) as? ILocalConnection)?.getLocalIp()
+                        if (localIp != null && !iceCandidate.sdp.contains(org.avmedia.remotevideocam.utils.Utils.getCommonSubnet(localIp))) {
+                            Timber.d("Filtering out local candidate: ${iceCandidate.sdp}")
+                            return
+                        }
+
                         val message = JSONObject()
                         try {
                             message.put("type", "candidate")
@@ -403,13 +422,23 @@ class VideoViewWebRTC @JvmOverloads constructor(context: Context, attrs: Attribu
                     doAnswer()
                 }
                 "candidate" -> {
+                    val candidateStr = webRtcEvent.getString("candidate")
+                    if (remoteValidIp != null && !candidateStr.contains(org.avmedia.remotevideocam.utils.Utils.getCommonSubnet(remoteValidIp!!))) {
+                        Timber.d("Filtering out remote candidate: $candidateStr")
+                        return
+                    }
+
                     val candidate =
                             IceCandidate(
                                     webRtcEvent.getString("id"),
                                     webRtcEvent.getInt("label"),
-                                    webRtcEvent.getString("candidate")
+                                    candidateStr
                             )
                     peerConnection?.addIceCandidate(candidate)
+                }
+                "DEVICE_INFO" -> {
+                    remoteValidIp = webRtcEvent.getString("ip_address")
+                    Timber.d("Received DEVICE_INFO. Remote IP: $remoteValidIp")
                 }
                 "bye" -> {
                     Timber.i("got bye")

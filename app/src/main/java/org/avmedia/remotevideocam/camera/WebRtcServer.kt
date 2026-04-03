@@ -14,6 +14,7 @@ import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
 import org.avmedia.remotevideocam.camera.CameraToDisplayEventBus.emitEvent
 import org.avmedia.remotevideocam.camera.DisplayToCameraEventBus.subscribe
+import org.avmedia.remotevideocam.common.ILocalConnection
 import org.avmedia.remotevideocam.utils.AndGate
 import org.avmedia.remotevideocam.utils.ConnectionUtils
 import org.avmedia.remotevideocam.utils.ProgressEvents
@@ -55,6 +56,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     private var andGate: AndGate? = null
     private var context: Context? = null
     private val signalingHandler = SignalingHandler()
+    private var remoteValidIp: String? = null
 
     private var videoCapturer: VideoCapturer? = null
     private var videoSource: VideoSource? = null
@@ -133,7 +135,19 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
         initializePeerConnections()
         startStreamingVideo()
         doCall()
+        sendDeviceInfo()
         startClient()
+    }
+
+    private fun sendDeviceInfo() {
+        val localIp = (Camera.getCameraConnection(context) as? ILocalConnection)?.getLocalIp()
+        if (localIp != null) {
+            val message = JSONObject().apply {
+                put("type", "DEVICE_INFO")
+                put("ip_address", localIp)
+            }
+            sendMessage(message)
+        }
     }
 
     private fun startStreamingVideo() {
@@ -248,6 +262,13 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                         object : PeerConnection.Observer {
                             override fun onIceCandidate(candidate: IceCandidate) {
                                 Log.d(TAG, "Local Server ICE Candidate: ${candidate.sdpMid}")
+
+                                val localIp = (Camera.getCameraConnection(context) as? ILocalConnection)?.getLocalIp()
+                                if (localIp != null && !candidate.sdp.contains(org.avmedia.remotevideocam.utils.Utils.getCommonSubnet(localIp))) {
+                                    Log.d(TAG, "Filtering out local candidate: ${candidate.sdp}")
+                                    return
+                                }
+
                                 val message =
                                         JSONObject().apply {
                                             put("type", TYPE_CANDIDATE)
@@ -401,13 +422,23 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                             }
                             TYPE_CANDIDATE -> {
                                 Log.d(TAG, "Server received CANDIDATE")
+                                val candidateStr = webRtcEvent.getString("candidate")
+                                if (remoteValidIp != null && !candidateStr.contains(org.avmedia.remotevideocam.utils.Utils.getCommonSubnet(remoteValidIp!!))) {
+                                    Log.d(TAG, "Filtering out remote candidate: $candidateStr")
+                                    return@Consumer
+                                }
+
                                 val candidate =
                                         IceCandidate(
                                                 webRtcEvent.getString("id"),
                                                 webRtcEvent.getInt("label"),
-                                                webRtcEvent.getString("candidate")
+                                                candidateStr
                                         )
                                 peerConnection?.addIceCandidate(candidate)
+                            }
+                            "DEVICE_INFO" -> {
+                                remoteValidIp = webRtcEvent.getString("ip_address")
+                                Log.d(TAG, "Server received DEVICE_INFO. Remote IP: $remoteValidIp")
                             }
                         }
                     },

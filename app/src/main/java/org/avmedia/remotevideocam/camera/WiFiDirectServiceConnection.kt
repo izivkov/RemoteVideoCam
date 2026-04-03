@@ -178,6 +178,10 @@ class WiFiDirectServiceConnection(override val isVideoCapable: Boolean) : ILocal
                 )
     }
 
+    override fun getLocalIp(): String? {
+        return org.avmedia.remotevideocam.utils.Utils.getMyIP()
+    }
+
     override fun disconnect(context: Context?) {
         stop()
         socketHandler?.close()

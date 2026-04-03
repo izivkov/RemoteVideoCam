@@ -15,6 +15,7 @@ interface ILocalConnection {
     fun sendMessage(message: String?)
     fun start()
     fun stop()
+    fun getLocalIp(): String?
     val isVideoCapable: Boolean
     val name: String
 }

@@ -244,6 +244,9 @@ class WiFiAwareServiceConnection(override val isVideoCapable: Boolean) : ILocalC
     override fun isConnected(): Boolean = socketHandler?.isConnected() ?: false
     override fun sendMessage(message: String?) { message?.let { socketHandler?.put(it) } }
     override fun stop() { socketHandler?.stop() }
+    override fun getLocalIp(): String? {
+        return org.avmedia.remotevideocam.utils.Utils.getMyIP()
+    }
     override fun start() {}
 
     private fun emitConnected() {

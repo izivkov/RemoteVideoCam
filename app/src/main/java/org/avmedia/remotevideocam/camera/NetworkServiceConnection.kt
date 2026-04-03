@@ -97,6 +97,10 @@ class NetworkServiceConnection : ILocalConnection {
         message?.let { socketHandler?.put(it) }
     }
 
+    override fun getLocalIp(): String? {
+        return Utils.getMyIP()
+    }
+
     private lateinit var mDiscoveryListener: NsdManager.DiscoveryListener
 
     private fun runConnection() {

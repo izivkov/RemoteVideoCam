@@ -81,35 +81,51 @@ object Utils {
     fun getAllMyIPs(): List<String> {
         val ips = mutableListOf<String>()
         try {
-            // Priority 1: WifiManager
-            val context: Context = MainActivity.applicationContext()
-            val wm = context.applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
-            val ipAddress = wm.connectionInfo.ipAddress
-            if (ipAddress != 0) {
-                val longIp = ipAddress.toLong()
-                val byteIp = BigInteger.valueOf(longIp).toByteArray().reversedArray()
-                val ipAddr = InetAddress.getByAddress(byteIp).hostAddress
-                ips.add(ipAddr)
-            }
-
-            // Priority 2: Network interfaces (more robust)
+            // Priority 1: Network interfaces (more robust)
             val networkInterfaces = java.net.NetworkInterface.getNetworkInterfaces()
-            for (iface in networkInterfaces) {
+            val interfaceList = networkInterfaces.toList()
+
+            // Prioritize p2p interfaces
+            val prioritizedInterfaces = interfaceList.sortedByDescending { it.name.contains("p2p") || it.name.contains("wlan") }
+
+            for (iface in prioritizedInterfaces) {
                 if (!iface.isUp || iface.isLoopback) continue
                 for (addr in iface.inetAddresses) {
                     if (addr is java.net.Inet4Address) {
                         addr.hostAddress?.let { host ->
-                            if (host != "127.0.0.1" && !ips.contains(host) && host.startsWith("192.168.")) {
+                            if (host != "127.0.0.1" && !ips.contains(host)) {
                                 ips.add(host)
                             }
                         }
                     }
                 }
             }
+
+            // Priority 2: WifiManager (Legacy/Fallback)
+            if (ips.isEmpty()) {
+                val context: Context = MainActivity.applicationContext()
+                val wm = context.applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+                val ipAddress = wm.connectionInfo.ipAddress
+                if (ipAddress != 0) {
+                    val longIp = ipAddress.toLong()
+                    val byteIp = BigInteger.valueOf(longIp).toByteArray().reversedArray()
+                    val ipAddr = InetAddress.getByAddress(byteIp).hostAddress
+                    ips.add(ipAddr)
+                }
+            }
         } catch (e: java.lang.Exception) {
             Timber.e(e, "Error getting IP addresses")
         }
         return ips
+    }
+
+    fun getCommonSubnet(ip: String): String {
+        val parts = ip.split(".")
+        return if (parts.size >= 3) {
+            "${parts[0]}.${parts[1]}.${parts[2]}."
+        } else {
+            ip
+        }
     }
 
     fun toast(context: Context, message: String) {
