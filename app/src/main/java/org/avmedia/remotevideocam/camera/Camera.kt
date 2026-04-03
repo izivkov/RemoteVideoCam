@@ -16,6 +16,14 @@ object Camera {
     private val videoServer: IVideoServer = WebRtcServer()
     private var context: Context? = null
 
+    fun getCameraConnection(context: Context?): ILocalConnection {
+        if (!::connection.isInitialized) {
+            this.context = context
+            this.connection = ConnectionStrategy.getCameraConnection(context!!)
+        }
+        return connection
+    }
+
     private var displayEventsDisposable: Disposable? = null
 
     fun init(

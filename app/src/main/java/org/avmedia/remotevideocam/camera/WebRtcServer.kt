@@ -140,7 +140,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     }
 
     private fun sendDeviceInfo() {
-        val localIp = (Camera.getCameraConnection(context) as? ILocalConnection)?.getLocalIp()
+        val localIp = Camera.getCameraConnection(context).getLocalIp()
         if (localIp != null) {
             val message = JSONObject().apply {
                 put("type", "DEVICE_INFO")
@@ -263,7 +263,7 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
                             override fun onIceCandidate(candidate: IceCandidate) {
                                 Log.d(TAG, "Local Server ICE Candidate: ${candidate.sdpMid}")
 
-                                val localIp = (Camera.getCameraConnection(context) as? ILocalConnection)?.getLocalIp()
+                                val localIp = Camera.getCameraConnection(context).getLocalIp()
                                 if (localIp != null && !candidate.sdp.contains(org.avmedia.remotevideocam.utils.Utils.getCommonSubnet(localIp))) {
                                     Log.d(TAG, "Filtering out local candidate: ${candidate.sdp}")
                                     return

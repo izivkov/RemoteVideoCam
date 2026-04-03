@@ -130,17 +130,23 @@ class RobustConnection(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun start() {
         networkConnection.start()
         wifiAwareConnection?.start()
         wifiDirectConnection.start()
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun stop() {
         handler.removeCallbacks(checkConnectionRunnable)
         handler.removeCallbacks(reconnectionWatchdog)
         networkConnection.stop()
         wifiAwareConnection?.stop()
         wifiDirectConnection.stop()
+    }
+
+    override fun getLocalIp(): String? {
+        return org.avmedia.remotevideocam.utils.Utils.getMyIP()
     }
 }
