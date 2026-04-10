@@ -77,7 +77,7 @@ object ConnectionStrategy {
         return getCameraConnection(context)
     }
 
-    private fun determineBestConnectionType(context: Context): ConnectionType {
+    private fun determineBestConnectionType_ORIG(context: Context): ConnectionType {
         val connectivityManager =
                 context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val activeNetwork = connectivityManager.activeNetwork
@@ -101,10 +101,11 @@ object ConnectionStrategy {
         return ConnectionType.WIFI_DIRECT
     }
 
-    private fun determineBestConnectionType_TEST(context: Context): ConnectionType {
+    private fun determineBestConnectionType(context: Context): ConnectionType {
 
         // We are hardcoding the NETWORK type because the WiFi Direct and WIFI_AWARE connections are
-        // not working
+        // not working.
+
         return ConnectionType.NETWORK
         // return ConnectionType.WIFI_AWARE
         // return ConnectionType.WIFI_DIRECT

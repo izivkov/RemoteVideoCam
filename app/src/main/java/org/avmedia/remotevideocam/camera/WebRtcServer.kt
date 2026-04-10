@@ -25,7 +25,6 @@ class WebRtcServer : IVideoServer, VideoProcessor.Listener {
     private val TAG = "WebRtcPeer"
 
     // Constants
-    private val STUN_URL = "stun:stun.l.google.com:19302"
     private val STREAM_ID = "ARDAMS"
     private val AUDIO_TRACK_ID = "101"
     private val CAPTURE_THREAD = "CaptureThread"
