@@ -100,10 +100,29 @@ CHANGELOG_PATH="fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt"
 echo "📂 Creating F-Droid changelog at $CHANGELOG_PATH..."
 
 if [ -f "RELEASE_NOTES.md" ]; then
+    # Verify that RELEASE_NOTES.md is for the correct version
+    if ! grep -q "v$VERSION_NAME" RELEASE_NOTES.md; then
+        echo "⚠️  Warning: RELEASE_NOTES.md does not seem to contain 'v$VERSION_NAME'."
+        echo "   Please update RELEASE_NOTES.md before releasing."
+        read -p "   Continue anyway? (y/N) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    fi
     # Use content from RELEASE_NOTES.md
     cat RELEASE_NOTES.md > "$CHANGELOG_PATH"
 else
     echo "New release $VERSION_NAME" > "$CHANGELOG_PATH"
+fi
+
+echo "📝 Release Notes Preview:"
+head -n 5 "$CHANGELOG_PATH"
+echo "..."
+read -p "🚀 Does this look correct? (y/N) " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    exit 1
 fi
 
 # 4. Git Operations
