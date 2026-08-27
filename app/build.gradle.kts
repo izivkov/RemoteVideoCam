@@ -1,19 +1,18 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
 android {
     namespace = "org.avmedia.remotevideocam"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "org.avmedia.remotevideocam"
         minSdk = 24
-        targetSdk = 36
-        versionCode = 411
-        versionName = "41.1"
+        targetSdk = 37
+        versionCode = 420
+        versionName = "42.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -48,6 +47,10 @@ android {
         }
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     packaging {
         jniLibs {
             useLegacyPackaging = true
@@ -57,10 +60,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
-    }
-    
-    kotlinOptions {
-        jvmTarget = "21"
     }
 }
 

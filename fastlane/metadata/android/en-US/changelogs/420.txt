@@ -1,0 +1,8 @@
+# Release Notes - v42.0
+
+## 🛠 Build System Modernization
+- **AGP 9.3.2 Upgrade**: The project is now powered by the latest Android Gradle Plugin, ensuring faster builds and better compatibility with modern Android tools.
+- **Gradle 9.5.1**: Updated to the newest Gradle version for improved performance and stability.
+- **Built-in Kotlin Support**: Migrated to AGP's built-in Kotlin support, simplifying our build configuration and reducing plugin overhead.
+- **Android 15 Ready**: Targeted Android 15 (API 37) to leverage the latest platform features and security enhancements.
+- **Dependency Refresh**: Updated core libraries including Kotlin 2.4.10 and Jetpack Compose 1.12.0 for a smoother development and user experience.
