@@ -80,8 +80,35 @@ else
 fi
 
 VERSION_NAME=${1#v}
-# Calculate version code by removing dots (e.g., 25.4 -> 254)
-VERSION_CODE=$(echo $VERSION_NAME | sed 's/\.//g')
+
+# --- FIX: versionCode calculation ---
+# Previously: VERSION_CODE=$(echo $VERSION_NAME | sed 's/\.//g')
+# That naive digit-concatenation approach is NOT monotonic across version-scheme
+# changes: "3.95" -> 395 but "4.0" -> 40, which is LOWER than 395. Android (and
+# F-Droid's build server) require versionCode to strictly increase for an update
+# to be recognized; a regression like that causes updates to be silently
+# rejected/skipped forever with no error.
+#
+# Fixed approach: weight major/minor/patch into fixed-width slots so the result
+# can never decrease as long as major.minor.patch increases in the normal sense.
+IFS='.' read -r VC_MAJOR VC_MINOR VC_PATCH <<< "$VERSION_NAME"
+VC_MAJOR=${VC_MAJOR:-0}
+VC_MINOR=${VC_MINOR:-0}
+VC_PATCH=${VC_PATCH:-0}
+VERSION_CODE=$((VC_MAJOR * 10000 + VC_MINOR * 100 + VC_PATCH))
+
+# Safety net: refuse to proceed if the computed versionCode would not increase
+# over what's currently in build.gradle.kts. This is exactly the failure mode
+# that caused F-Droid updates to silently stop before.
+CURRENT_VERSION_CODE=$(grep -oE 'versionCode = [0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')
+if [ -n "$CURRENT_VERSION_CODE" ] && [ "$VERSION_CODE" -le "$CURRENT_VERSION_CODE" ]; then
+    echo "❌ Error: computed versionCode ($VERSION_CODE) is not greater than the"
+    echo "   current versionCode ($CURRENT_VERSION_CODE) in app/build.gradle.kts."
+    echo "   Android and F-Droid both require versionCode to strictly increase,"
+    echo "   or this release will silently fail to be recognized as an update."
+    exit 1
+fi
+# --- END FIX ---
 
 echo "🚀 Preparing release for version $VERSION_NAME (Code: $VERSION_CODE)..."
 
@@ -165,4 +192,3 @@ if [ "$CURRENT_BRANCH" == "main" ]; then
 fi
 
 echo "✅ Release process initiated! The GitHub Action will now build and upload the APK."
-
