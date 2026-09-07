@@ -128,17 +128,25 @@ echo "📂 Creating F-Droid changelog at $CHANGELOG_PATH..."
 
 if [ -f "RELEASE_NOTES.md" ]; then
     # Verify that RELEASE_NOTES.md is for the correct version
-    if ! grep -q "v$VERSION_NAME" RELEASE_NOTES.md; then
-        echo "⚠️  Warning: RELEASE_NOTES.md does not seem to contain 'v$VERSION_NAME'."
-        echo "   Please update RELEASE_NOTES.md before releasing."
-        read -p "   Continue anyway? (y/N) " -n 1 -r
+    FIRST_LINE=$(head -n 1 RELEASE_NOTES.md)
+    if [[ "$FIRST_LINE" != "# Release Notes - v$VERSION_NAME" ]]; then
+        echo "⚠️  Warning: RELEASE_NOTES.md header does not match 'v$VERSION_NAME'."
+        echo "   Current header: $FIRST_LINE"
+        read -p "   Update RELEASE_NOTES.md header automatically? (y/N) " -n 1 -r
         echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            sed -i "1s/.*/# Release Notes - v$VERSION_NAME/" RELEASE_NOTES.md
+            echo "✅ Header updated."
+        else
+            read -p "   Continue anyway? (y/N) " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                exit 1
+            fi
         fi
     fi
-    # Use content from RELEASE_NOTES.md
-    cat RELEASE_NOTES.md > "$CHANGELOG_PATH"
+    # Extract only the latest section (from the first '# Release Notes' to the next one)
+    awk '/^# Release Notes/{count++; if(count>1) exit} {if(count==1) print}' RELEASE_NOTES.md > "$CHANGELOG_PATH"
 else
     echo "New release $VERSION_NAME" > "$CHANGELOG_PATH"
 fi
@@ -169,8 +177,8 @@ git push origin "v$VERSION_NAME"
 # Create GitHub Release
 if [ "$GH_AVAILABLE" = true ]; then
     echo "🎁 Creating GitHub release v$VERSION_NAME..."
-    if [ -f "RELEASE_NOTES.md" ]; then
-        gh release create "v$VERSION_NAME" --title "Release v$VERSION_NAME" --notes-file "RELEASE_NOTES.md"
+    if [ -f "$CHANGELOG_PATH" ]; then
+        gh release create "v$VERSION_NAME" --title "Release v$VERSION_NAME" --notes-file "$CHANGELOG_PATH"
     else
         gh release create "v$VERSION_NAME" --title "Release v$VERSION_NAME" --notes "New release $VERSION_NAME"
     fi
