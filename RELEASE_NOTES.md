@@ -1,3 +1,8 @@
+# Release Notes - v42.10
+
+## 🚀 Bug Fixes & Stability
+- Internal optimizations and bug fixes for improved stability.
+
 # Release Notes - v42.9
 
 ## 🚀 Bug Fixes & Stability
