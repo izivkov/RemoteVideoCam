@@ -132,13 +132,20 @@ if [ -f "RELEASE_NOTES.md" ]; then
     if [[ "$FIRST_LINE" != "# Release Notes - v$VERSION_NAME" ]]; then
         echo "⚠️  Warning: RELEASE_NOTES.md header does not match 'v$VERSION_NAME'."
         echo "   Current header: $FIRST_LINE"
-        read -p "   Update RELEASE_NOTES.md header automatically? (y/N) " -n 1 -r
+        read -p "   Insert new Release Notes section for v$VERSION_NAME? (y/N) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            sed -i "1s/.*/# Release Notes - v$VERSION_NAME/" RELEASE_NOTES.md
-            echo "✅ Header updated."
+            # Prepend new release notes template
+            printf "# Release Notes - v$VERSION_NAME\n\n## 🚀 Bug Fixes & Stability\n- Internal optimizations and bug fixes for improved stability.\n\n$(cat RELEASE_NOTES.md)" > RELEASE_NOTES.md
+            echo "✅ New section inserted at the top of RELEASE_NOTES.md."
+            echo "   Please review and edit it before continuing if needed."
+            read -p "   Ready to continue? (y/N) " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                exit 1
+            fi
         else
-            read -p "   Continue anyway? (y/N) " -n 1 -r
+            read -p "   Continue anyway using existing notes? (y/N) " -n 1 -r
             echo
             if [[ ! $REPLY =~ ^[Yy]$ ]]; then
                 exit 1
