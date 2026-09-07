@@ -11,8 +11,8 @@ android {
         applicationId = "org.avmedia.remotevideocam"
         minSdk = 24
         targetSdk = 37
-        versionCode = 420800
-        versionName = "42.8"
+        versionCode = 420900
+        versionName = "42.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
