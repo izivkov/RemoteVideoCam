@@ -3,6 +3,8 @@
 ## 🚀 Bug Fixes & Stability
 - Internal optimizations and bug fixes for improved stability.
 
+# Release Notes - v42.0
+
 ## 🛠 Build System Modernization
 - **AGP 9.3.2 Upgrade**: The project is now powered by the latest Android Gradle Plugin, ensuring faster builds and better compatibility with modern Android tools.
 - **Gradle 9.5.1**: Updated to the newest Gradle version for improved performance and stability.
