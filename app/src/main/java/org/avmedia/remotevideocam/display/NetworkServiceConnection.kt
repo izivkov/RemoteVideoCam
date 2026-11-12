@@ -20,6 +20,17 @@ object NetworkServiceConnection : ILocalConnection {
     private var SERVICE_NAME: String? = null
     private const val SERVICE_TYPE = "_org_avmedia_remotevideocam._tcp."
 
+    /**
+     * At least one non-empty TXT attribute must be registered.
+     *
+     * Registering without any attribute produces an empty TXT record in mDNS. Android 14 NsdService throws
+     * "Key cannot be empty" from NsdServiceInfo.setAttribute() while parsing such a service and then unregisters
+     * the peer mDNS discovery listener ([MdnsDiscoveryManager] Unregistering listener), so the device can no longer
+     * rediscover/reconnect automatically after a disconnect. A valid key=value avoids that system parsing bug.
+     */
+    private const val SERVICE_TXT_KEY = "app"
+    private const val SERVICE_TXT_VALUE = "RemoteVideoCam"
+
     private var dataReceivedCallback: IDataReceived? = null
 
     private const val port = 19400
@@ -133,6 +144,8 @@ object NetworkServiceConnection : ILocalConnection {
         serviceInfo.serviceName = SERVICE_NAME
         serviceInfo.serviceType = SERVICE_TYPE
         serviceInfo.port = port
+        // See SERVICE_TXT_KEY: avoid the empty TXT record that crashes Android 14 NsdService
+        serviceInfo.setAttribute(SERVICE_TXT_KEY, SERVICE_TXT_VALUE)
 
         try {
             mNsdManager?.registerService(

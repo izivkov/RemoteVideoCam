@@ -16,12 +16,26 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.avmedia.remotevideocam.display.customcomponents.VideoViewWebRTC
 import org.avmedia.remotevideocam.ui.components.*
 import org.avmedia.remotevideocam.ui.theme.ConnectedGreen
 import org.avmedia.remotevideocam.utils.ProgressEvents
+
+/** Time format for "last update", easy to tweak */
+private const val LAST_FRAME_TIME_PATTERN = "HH:mm:ss"
+
+/** Placeholder text shown when no video frame has been received yet */
+private const val NO_LAST_FRAME_TIME_TEXT = "--:--:--"
+
+/** Warning color used when the picture is frozen */
+private val FreezeAmber = Color(0xFFFFB300)
 
 /** Display screen showing the remote camera feed with controls */
 @Composable
@@ -34,6 +48,19 @@ fun DisplayScreen(
         isMirrored: Boolean = false,
         videoViewWebRTC: VideoViewWebRTC? = null
 ) {
+        // Subscribe only to "milliseconds since last frame": 0 while playing (StateFlow deduplicates), updated every 250ms, so 30fps never causes recomposition
+        val msSinceLastFrame by
+                remember(videoViewWebRTC) {
+                        videoViewWebRTC?.msSinceLastFrame ?: MutableStateFlow<Long?>(null)
+                }
+                        .collectAsState()
+
+        // No new frame beyond the threshold means the picture is frozen; null means no frame yet, so no alert (the screen is black anyway and cannot be mistaken for live video)
+        val isFrameStalled = (msSinceLastFrame ?: 0L) >= VideoViewWebRTC.FRAME_FREEZE_TIMEOUT_MS
+
+        // Only a real received frame counts as "has picture": a connection with zero frames must not show LIVE
+        val hasVideoFrames = msSinceLastFrame != null
+
         Box(modifier = modifier.fillMaxSize().background(Color.Black)) {
                 // WebRTC Video View
                 if (videoViewWebRTC != null) {
@@ -81,6 +108,12 @@ fun DisplayScreen(
                         }
                 }
 
+                // Freeze alert (dim the picture and show the time of the last real frame)
+                FreezeAlertOverlay(
+                        videoViewWebRTC = videoViewWebRTC,
+                        isFrameStalled = isFrameStalled
+                )
+
                 // Top UI Overlay
                 Column(modifier = Modifier.fillMaxSize().statusBarsPadding().padding(16.dp)) {
                         Row(
@@ -94,7 +127,8 @@ fun DisplayScreen(
 
                                 AnimatedEntrance(delay = 400) {
                                         ConnectionStatusIndicator(
-                                                isConnected = videoViewWebRTC != null
+                                                hasVideoFrames = hasVideoFrames,
+                                                isFrameStalled = isFrameStalled
                                         )
                                 }
                         }
@@ -196,7 +230,14 @@ private fun DisplayModeIndicator(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ConnectionStatusIndicator(isConnected: Boolean, modifier: Modifier = Modifier) {
+private fun ConnectionStatusIndicator(
+        hasVideoFrames: Boolean,
+        isFrameStalled: Boolean = false,
+        modifier: Modifier = Modifier
+) {
+        // Only "actually receiving frames" counts as LIVE: never show a green LIVE while the picture is frozen or no frame arrived
+        val isLive = hasVideoFrames && !isFrameStalled
+
         val infiniteTransition = rememberInfiniteTransition(label = "connection")
         val pulseScale by
                 infiniteTransition.animateFloat(
@@ -210,6 +251,19 @@ private fun ConnectionStatusIndicator(isConnected: Boolean, modifier: Modifier =
                         label = "pulse"
                 )
 
+        val dotColor =
+                when {
+                        isFrameStalled -> FreezeAmber
+                        hasVideoFrames -> ConnectedGreen
+                        else -> Color.Red
+                }
+        val statusText =
+                when {
+                        isFrameStalled -> "STALLED"
+                        hasVideoFrames -> "LIVE"
+                        else -> "OFFLINE"
+                }
+
         Row(
                 modifier =
                         modifier.clip(RoundedCornerShape(20.dp))
@@ -222,23 +276,80 @@ private fun ConnectionStatusIndicator(isConnected: Boolean, modifier: Modifier =
                         modifier =
                                 Modifier.size(8.dp)
                                         .graphicsLayer {
-                                                scaleX = if (isConnected) pulseScale else 1f
-                                                scaleY = if (isConnected) pulseScale else 1f
+                                                scaleX = if (isLive) pulseScale else 1f
+                                                scaleY = if (isLive) pulseScale else 1f
                                         }
                                         .background(
-                                                color =
-                                                        if (isConnected) ConnectedGreen
-                                                        else Color.Red,
+                                                color = dotColor,
                                                 shape =
                                                         androidx.compose.foundation.shape
                                                                 .CircleShape
                                         )
                 )
                 Text(
-                        text = if (isConnected) "LIVE" else "OFFLINE",
+                        text = statusText,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                 )
         }
+}
+
+/**
+ * Freeze alert: dim the picture and show the time of the last video frame actually received.
+ * The HH:mm:ss here is the wall-clock time of the last frame, not the current time, so a ticking clock can never mask a dead picture.
+ */
+@Composable
+private fun FreezeAlertOverlay(
+        videoViewWebRTC: VideoViewWebRTC?,
+        isFrameStalled: Boolean,
+        modifier: Modifier = Modifier
+) {
+        // This timestamp is only needed for the alert; the per-second StateFlow triggers at most one recomposition per second
+        val lastFrameTimestampMs by
+                remember(videoViewWebRTC) {
+                        videoViewWebRTC?.lastFrameTimestampMs ?: MutableStateFlow(0L)
+                }
+                        .collectAsState()
+
+        val lastUpdateText =
+                remember(lastFrameTimestampMs) { formatLastFrameTime(lastFrameTimestampMs) }
+
+        AnimatedVisibility(
+                visible = isFrameStalled,
+                enter = fadeIn(tween(300)),
+                exit = fadeOut(tween(300)),
+                modifier = modifier
+        ) {
+                Box(
+                        modifier =
+                                Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.72f)),
+                        contentAlignment = Alignment.Center
+                ) {
+                        Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                                Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(56.dp),
+                                        tint = FreezeAmber
+                                )
+                                Text(
+                                        text = "Video paused - last update $lastUpdateText",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(horizontal = 24.dp)
+                                )
+                        }
+                }
+        }
+}
+
+private fun formatLastFrameTime(timestampMs: Long): String {
+        if (timestampMs <= 0L) return NO_LAST_FRAME_TIME_TEXT
+        return SimpleDateFormat(LAST_FRAME_TIME_PATTERN, Locale.getDefault()).format(Date(timestampMs))
 }
